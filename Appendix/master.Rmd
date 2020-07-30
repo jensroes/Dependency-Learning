@@ -1,5 +1,6 @@
 ---
-title             : "Dependency learning"
+title             : "Supplementary material"
+shorttitle        : "Supplementary material"
 
 author: 
   - name          : "Jens Roeser"
@@ -28,7 +29,8 @@ figurelist        : no
 tablelist         : no
 footnotelist      : no
 lineno            : no
-mask              : no
+mask              : yes
+draft             : no    
 
 header-includes:
   - \usepackage{booktabs}

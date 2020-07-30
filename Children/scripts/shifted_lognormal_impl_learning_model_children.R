@@ -3,7 +3,7 @@ library(tidyverse)
 library(brms)
 
 # Load data
-d <- read_csv("Adults/data/seqlearn.csv") %>%
+d <- read_csv("Children/data/seqlearn.csv") %>%
   mutate(dependency = factor(dependency))
 
 table(d$dependency2, d$block)
@@ -94,6 +94,7 @@ priors <- c(prior(normal(7, 5), class = "Intercept"),
             prior(lkj(2), class = "cor", group = "subj"),
             prior(normal(4, 2), class = "Intercept", dpar = "ndt"))
 
+
 fit <- brm(m, 
            data = d,
            prior = priors,
@@ -108,16 +109,15 @@ fit <- brm(m,
 
 # Save model
 saveRDS(fit,
-     file="Adults/stanout/shifted_lognormal_impl_learning_model_adults.rda",
+     file="Children/stanout/shifted_lognormal_impl_learning_model_children.rda",
      compress="xz")
-
 
 #summary(fit)
 #plot(fit, pars = "^b_") 
 #pp_check(fit)
 #marginal_effects(fit)
 
-# Model checks
 samps <- brms::posterior_samples(fit, "b_") # It saves all the samples from the model.
 
-write_csv(samps, "Adults/stanout/shifted_lognormal_impl_learning_adults_posterior.csv")
+write_csv(samps, "Children/stanout/shifted_lognormal_impl_learning_children_posterior.csv")
+

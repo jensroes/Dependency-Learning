@@ -1,0 +1,70 @@
+---
+title             : "Dependency learning"
+
+author: 
+  - name          : "Jens Roeser"
+    affiliation   : "1"
+    address       : "50 Shakespeare St, Nottingham NG1 4FQ"
+    corresponding : yes    # Define only one corresponding author
+    email         : "jens.roeser@ntu.ac.uk"
+
+affiliation:
+  - id            : "1"
+    institution   : "Nottingham Trent University"
+
+documentclass     : "apa7"
+class             : "man"
+output            :
+#  papaja::apa6_word:
+#  papaja::apa6_docx:
+  papaja::apa6_pdf:
+      fig_crop: no
+      includes:
+        after_body: 
+          - "appendix.tex"
+
+figsintext        : yes
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+lineno            : no
+mask              : no
+
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{array}
+  - \usepackage{multirow}
+  - \usepackage{wrapfig}
+  - \usepackage{float}
+  - \usepackage{colortbl}
+  - \usepackage{pdflscape}
+  - \usepackage{tabu}
+  - \usepackage{threeparttable}
+  - \usepackage[normalem]{ulem}
+  - \usepackage[utf8]{inputenc}
+  - \usepackage[toc,page,header]{appendix}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(#echo = TRUE, 
+                      warning = FALSE, 
+                      message = FALSE
+                      )
+```
+
+
+```{r load_packages}
+library(knitr)
+library(kableExtra)
+library(brms)
+library(papaja)
+library(tidyverse)
+library(MASS)
+source("../functions/functions.R")
+```
+
+```{r render_appendix, include=FALSE}
+render_appendix("appendix.Rmd")
+```
+

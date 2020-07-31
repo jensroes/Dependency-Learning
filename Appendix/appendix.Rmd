@@ -16,7 +16,7 @@ samps <- bind_rows(samps_adults, samps_children)
 
 samps_rt <- samps %>%
   as_tibble() %>%
-  mutate_at(vars(starts_with("b_COND"), "b_scaletrial_in_block"), list(~ (exp(b_Intercept + .) - exp(b_Intercept)))) %>%
+  mutate_at(vars(starts_with("b_COND"), "b_scaletrial_in_block"), list(~ (exp(b_Intercept + ./4) - exp(b_Intercept)))) %>%
   mutate_at(vars(ends_with("Intercept")), exp)
 
 names(samps_rt) <- c("(Intercept)", "Non-decision time", coln, "Repetition within block", "Group")

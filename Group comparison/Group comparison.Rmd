@@ -1,0 +1,263 @@
+---
+title:            "Dependency learning: comparing adults and children"
+shorttitle:       "Dependency learning"
+csl               : "apa.csl" 
+
+author: 
+  - name          : "Jens Roeser"
+    affiliation   : "1"
+    address       : "50 Shakespeare St, Nottingham NG1 4FQ"
+    corresponding : yes 
+    email         : "jens.roeser@ntu.ac.uk"
+
+affiliation:
+  - id            : "1"
+    institution   : "Department of Psychology, Nottingham Trent University, United Kingdom"
+
+
+abstract: |
+
+
+keywords: ""
+
+
+bibliography      : ["references.bib"]
+
+
+documentclass     : "apa7"
+classoption       : "man"
+output            : 
+  papaja::apa6_pdf:
+    keep_tex: TRUE
+#  papaja::apa6_docx:
+#    keep_tex: TRUE
+#    reference_docx: xxx.docx
+
+
+figsintext        : yes
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+lineno            : no
+mask              : no
+csquotes          : true
+
+
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{graphicx}
+  - \usepackage{array}
+  - \usepackage{float}
+  - \usepackage{threeparttable}
+  - \usepackage[normalem]{ulem}
+  - \usepackage[utf8]{inputenc}
+  - \usepackage{icomma}
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(papaja)
+library(kableExtra)
+library(citr) # CRTL + Shift + R for citations
+library(tidyverse)
+library(magrittr)
+library(brms)
+library(rethinking)
+library(bayestestR)
+source("../functions/functions.R")
+```
+
+
+# Comparisons between children and adults
+
+
+In this final analysis we evaluate differences between the adults (Experiment 1) and the children results (Experiment 2). In particular, we focused on the effect of main interest to evaluate implicit learning; i.e. the slowdown in reaction times in the transfer block (Block 7) relative to Block 6. To compared the data from adults and children we pooled the serial reaction-time data from both experiments and extracted the data from Block 6 and 7. This analysis was largely similar to the reaction-time models reported earlier: reaction times were modelled in Bayesian linear mixed-effects models. Reaction times for elements that were not part of an adjacent or nonadjacent dependency were included in the model as baseline. Model predictors were Age Group (levels: adults, children), Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent), Block (levels: 6, 7), and all by-Dependency and by-Adjacency interactions. All predictors were sum-coded.
+
+Reaction time data were ﬁtted with a shifted-lognormal distribution, random intercepts for each stimulus image, and random participants intercepts and by-participant slow adjustments for all main effects and interactions. In additional to the parameter estimates as in the previous results section, we calculated from the posterior the standardised effect sizes $\delta$, defined as $\delta = \frac{\mu}{\sigma}$ , where $\mu$ is the estimated parameter value of the effect of interest and $\sigma$ is the pooled standard deviation. The effect size was calculated to allow comparisons across age group [@wagenmakers2010bayesian]. For the effect sizes, we determined the region of practical equivalence (henceforth, ROPE) to assess the uncertainty of the effect size [@makowski2019bayestestr]. The ROPE is a range of values that are practically equivalent to a null effect [see e.g. @kruschke2010believe;@kruschke2011bayesian]. For the effect size we set the ROPE to be -0.1 and 0.1 [@kruschke2018rejecting] which is the range of negligible effects sizes [@cohn1988statistical]. The value returned is the amount of posterior samples (of the effect size) that fell inside the ROPE. A meaningful effect size should have no or a small proportion of posterior samples within the ROPE. In other words, the ROPE value indicates to what extent the posterior cannot rule out an negligible effect.
+
+
+Table \ref{tab:tablemodel} summaries the model outcome for the serial reaction-time data. We found compelling evidence for longer reaction times for children compared to adults. Reaction times for Block 7 were longer than for Block 6. Further evidence was found for the two-way interactions of Age Group and Block, and Age Group and Dependency. Importantly, we found evidence for the three-way interaction for both Dependency and Adjacency by Block and Age Group. 
+
+
+```{r tablemodel,  results='asis'}
+samps <- read_csv("../Group comparison/group_model_posterior.csv")
+
+samps_rt <- samps %>%
+  as_tibble() %>%
+  mutate_at(vars(starts_with("b_COND")), list(~ (exp(b_Intercept + ./4) - exp(b_Intercept)))) %>%
+  mutate_at(vars(ends_with("Intercept")), exp)
+
+coln <- c("Age Group", "Dependency", "Adjacency", "Block", "Dependency * Block", "Adjacency * Block",
+          "Age * Block", "Age * Dependency", "Age * Adjacency", "Dependency * Block * Age", "Adjacency * Block * Age")
+
+names(samps_rt) <- c("(Intercept)", "Non-decision time", coln, "Repetition within block", "Sigma")
+predlevels <- c("(Intercept)", coln, "Repetition within block", "Non-decision time", "Sigma")
+
+samps_rt_summary <- samps_rt %>%  
+  pivot_longer(everything(), names_to = "param", values_to = "value") %>%
+  mutate(param = factor(param, levels = predlevels, ordered = T)) %>%
+  filter(!(param %in% c("Repetition within block", "Non-decision time", "Sigma"))) %>%
+  group_by(param) %>%
+  summarise(Med = dmode(value),
+            Lo = rethinking::HPDI(value, prob = .95)[1],
+            Up = rethinking::HPDI(value, prob = .95)[2],
+            p = mean(value < 0 )) %>%
+  ungroup() %>%
+  mutate_at(vars(Med, Lo, Up), round, 0) %>%
+  mutate_at(vars(p), round, 3) %>%
+  mutate(p = ifelse(p == 0, 0.001, 
+                    ifelse(p == 1, 0.999, p)),
+    p = as.character(as.numeric(paste0(p))),
+    p = gsub("0\\.", ".", p),
+    p = replace(p, p == ".001", "<.001"),
+    p = replace(p, p == ".999", ">.999"),
+    p = ifelse(param == "(Intercept)", "--", p)) %>%
+  unite(Lo:Up, col = "PI", sep = ", ") %>%
+  mutate(PI = paste0("[", PI, "]")) %>%
+  rename(Parameter = param) %>%
+  mutate(Parameter = as.character(Parameter))
+
+
+samps_std <- samps %>%
+  as_tibble() %>%
+  mutate_at(vars(starts_with("b_COND")), list(~ ./sigma)) %>%
+  dplyr::select(-contains("ndt"), -sigma, -contains("Intercept"), -b_scaletrial_in_block) 
+
+names(samps_std) <- coln
+
+samps_std_summary <- samps_std %>%
+  pivot_longer(everything(), names_to = "param", values_to = "value") %>%
+  mutate(param = factor(param, levels = coln, ordered = T)) %>%
+  group_by(param) %>%
+  summarise(Med = dmode(value),
+            Lo = rethinking::HPDI(value, prob = .95)[1],
+            Up = rethinking::HPDI(value, prob = .95)[2]) %>%
+  ungroup() %>%
+  mutate_at(vars(Med, Lo, Up), round, 2) %>%
+  unite(Lo:Up, col = "PI", sep = ", ") %>%
+  mutate(PI = paste0("[", PI, "]")) %>%
+  rename(Parameter = param) %>%
+  mutate(Parameter = as.character(Parameter))
+
+ropes <- samps_std %>%
+  rope(range = c(-.1,.1), ci = .89) %>%
+  as_tibble() %>%
+  rename(ROPE = ROPE_Percentage) %>%
+  dplyr::select(Parameter, ROPE) %>%
+  mutate(ROPE = round(ROPE * 100, 0)) %>%
+  mutate(Parameter = factor(Parameter, levels = coln, ordered = T)) %>%
+  mutate(Parameter = as.character(Parameter))
+
+
+summary <- left_join(samps_rt_summary, samps_std_summary, by = "Parameter") %>%
+  left_join(ropes, by = "Parameter") %>%
+  mutate(Med.y = as.character(Med.y),
+         ROPE = paste0(ROPE, "%")) %>%
+  replace(is.na(.), "--") %>%
+#  unite("RT", ends_with(".x"), sep = " ") %>%
+#  unite("delta", ends_with(".y"), sep = " ") %>%
+  filter(Parameter != "(Intercept)") %>%
+  mutate(Parameter = gsub("\\*", "$\\\\times$", Parameter))
+
+names(summary) <- c("Predictor", "$\\hat{\\mu}$", "95\\% HPDI", "$P(\\hat{\\mu}<0)$", "$\\hat{\\delta}$", "95\\% HPDI", "ROPE" )
+
+papaja::apa_table(summary, align =  "lrrrrrr", 
+                  escape = FALSE, placement = "ht", row.names = T, 
+                  stub_indents = list(`Main effects` = 1:4, `Interactions`= 5:11),
+                  col_spanners = list(`Parameter estimate` = c(2,4),
+                                      `Effect size` = c(5,7)),
+                  digits = 0,
+                  caption = "Age group comparison for serial reaction-time data. Shown are the estimated parameter values $\\hat{\\mu}$ (in msecs) and the effect size $\\hat{\\delta}$ for main effects and interactions of Age Group (levels: adults, children), Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent).", 
+                  note = "$\\hat{\\mu}$ = most probable parameter value; 95\\% HPDI = interval containing 95\\% of the probability mass; $P(\\hat{\\mu}<0)$ = probability of the true parameter value being smaller than 0; $\\hat{\\delta}$ = most probable effect-size estimate; ROPE = region of practical equivalence.") 
+
+```
+
+
+
+```{r}
+es <- read_csv("../Group comparison/posterior_by_group_effectsize.csv") %>%
+  dplyr::select(-ends_with(".x"),-P) %>%
+  mutate(ROPE = paste0(round(ROPE,0), "%")) %>%
+  mutate_if(is.numeric, round, 2)
+
+adults_adj <- es %>% filter(Group == "adults", Dep == "adjacent") %>% dplyr::select(Med.y:ROPE)
+adults_nonadj <- es %>% filter(Group == "adults", Dep == "nonadjacent") %>% dplyr::select(Med.y:ROPE)
+adults_baseline <- es %>% filter(Group == "adults", Dep == "none") %>% dplyr::select(Med.y:ROPE)
+
+children_adj <- es %>% filter(Group == "children", Dep == "adjacent") %>% dplyr::select(Med.y:ROPE)
+children_nonadj <- es %>% filter(Group == "children", Dep == "nonadjacent") %>% dplyr::select(Med.y:ROPE)
+children_baseline <- es %>% filter(Group == "children", Dep == "none") %>% dplyr::select(Med.y:ROPE)
+
+
+# Overall dependency slowdown
+dep <- read_csv("../Group comparison/posterior_by_group_effectsize_dependency.csv") %>%
+    dplyr::select(-ends_with(".x"),-P) %>%
+  mutate(ROPE = paste0(round(ROPE,0), "%")) %>%
+  mutate_if(is.numeric, round, 2)
+
+adults_dep <- dep %>% filter(Group == "adults", Dependency == "dependency") %>% dplyr::select(Med.y:ROPE)
+children_dep <- dep %>% filter(Group == "children", Dependency == "dependency") %>% dplyr::select(Med.y:ROPE)
+```
+
+
+Figure \ref{fig:plotgroupcomp} illustrates the modelled serial reaction-time data comparing the slowdown from Block 6 to Block 7 for the adult and the children group. The slowdown from Block 6 to 7 was tested within Age Group and Dependency / Adjacency to gain further insight into the source of the two three-way interactions. Reported are the effect sizes for each comparison. 
+
+```{r plotgroupcomp, fig.pos='ht', fig.align='center', fig.cap='Modelled serial reaction-time data (group comparison). Reaction time data for each age group for the final two blocks (block 7 is the transfer block). Shown are the modelled reaction-time data with 95\\% HPDI (in msecs) for each dependency and adjacency type.',  fig.width=8.5, fig.height=5}
+
+read_csv("../Group comparison/posterior_by_group.csv") %>%
+  mutate(Dependency = ifelse(Dependency == "none", "baseline", Dependency)) %>%
+  mutate(Dependency = factor(Dependency, levels = c("adjacent", "nonadjacent", "baseline"), ordered = T),
+         Block = paste0("Block: ", Block)) %>%
+  group_by(Group, Block, Dependency) %>%
+  dplyr::summarise(M = median(RT),
+                   Lower = HPDI(RT, prob = .95)[1],
+                   Upper = HPDI(RT, prob = .95)[2]) %>%
+  ungroup() %>% ggplot(aes(x = Block, y = M, 
+             color = Dependency, 
+             linetype = Dependency, 
+             shape = Dependency,
+             ymin = Lower, ymax = Upper,
+             group = interaction(Dependency))) +
+  theme_minimal(base_size = 14) +
+  facet_grid(~Group, labeller = label_both) +
+  geom_errorbar(width = .0, position = position_dodge(.5)) +
+  geom_point(size = 4, position = position_dodge(.5)) +
+  geom_line(position = position_dodge(.5)) +
+  scale_shape_manual("Dependency:", values = c(21,23,24)) +
+  scale_colour_manual("Dependency:", values =  c("black", "black", "grey50")) +
+  scale_linetype_manual("Dependency:",values = c("solid", "dashed", "dotted")) +
+  labs(y = bquote(atop("Most probable parameter value"~hat(mu),"with 95% HPDIs (in msecs)")), x = "") +
+  scale_y_continuous(breaks = seq(800, 2100, 100)) +
+  theme(legend.justification =  "top",
+        strip.text = element_text(hjust = 0, size = 12),
+        legend.key.width = unit(1.25, "cm")) 
+
+#ggsave("Group comparison/modelled_groups_plot.png", width = 7, height = 4)
+```
+
+First, we observed an interaction of Dependency (levels: dependency, baseline), Block, and Age Group. For the adult group, we observed a small effect for a slowdown from Block 6 to 7 in the dependency condition ($\hat{\delta}$ = `r adults_dep$Med.y`, 95% HPDI[`r adults_dep$Lo.y`, `r adults_dep$Up.y`], ROPE = `r adults_dep$ROPE`) but negligible evidence for a slowdown in baseline trials ($\hat{\delta}$ = `r adults_baseline$Med.y`, 95% HPDI[`r adults_baseline$Lo.y`, `r adults_baseline$Up.y`], ROPE = `r adults_baseline$ROPE`). For the children group, we observed small slowdown effects in both the dependency condition ($\hat{\delta}$ = `r children_dep$Med.y`, 95% HPDI[`r children_dep$Lo.y`, `r children_dep$Up.y`], ROPE = `r children_dep$ROPE`) and for the baseline condition ($\hat{\delta}$ = `r children_baseline$Med.y`, 95% HPDI[`r children_baseline$Lo.y`, `r children_baseline$Up.y`], ROPE = `r children_baseline$ROPE`).
+
+Second, we observed an interaction of Adjacency (levels: adjacent, nonadjacent), Block, and Age Group. Slowdown effects were found in adults for both adjacent ($\hat{\delta}$ = `r adults_adj$Med.y`, 95% HPDI[`r adults_adj$Lo.y`, `r adults_adj$Up.y`], ROPE = `r adults_adj$ROPE`) and nonadjacent dependencies ($\hat{\delta}$ = `r adults_nonadj$Med.y`, 95% HPDI[`r adults_nonadj$Lo.y`, `r adults_nonadj$Up.y`], ROPE = `r adults_nonadj$ROPE`). However, for the children group we observed a weak slowdown effect for adjacent dependencies that did not rule out the absence of an effect ($\hat{\delta}$ = `r children_adj$Med.y`, 95% HPDI[`r children_adj$Lo.y`, `r children_adj$Up.y`], ROPE = `r children_adj$ROPE`). The slowdown effect for nonadjacent dependencies was small ($\hat{\delta}$ = `r children_nonadj$Med.y`, 95% HPDI[`r children_nonadj$Lo.y`, `r children_nonadj$Up.y`], ROPE = `r children_nonadj$ROPE`).  
+
+
+
+\newpage
+
+
+# References
+```{r create_r-references, echo=FALSE, include=FALSE}
+r_refs(file = "references.bib")
+```
+
+\begingroup
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
+  
+<div id = "ref"></div>
+\endgroup
+  

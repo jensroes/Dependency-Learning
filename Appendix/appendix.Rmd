@@ -50,7 +50,9 @@ samps_rt_summary <- samps_rt %>%
 ```{r, results = 'asis'}
 samps <- samps_rt_summary %>% pivot_wider(names_from = Group, values_from = Med:p) %>%
   dplyr::select(param, ends_with("Adults"), ends_with("Children")) %>%
-  filter(param != "Non-decision time")
+  filter(!(param %in% c("Non-decision time","Repetition within block", "(Intercept)"))) %>%
+  mutate(param = gsub("\\*", "$\\\\times$", param))
+
 #samps_adults <- filter(samps_rt_summary, Group == "Adults") %>% dplyr::select(-Group)
 names(samps) <- c("Predictor", rep(c("$\\hat{\\mu}$", "95\\% HPDI", "$P(\\hat{\\mu}<0)$"), 2))
 papaja::apa_table(samps,
@@ -59,9 +61,11 @@ papaja::apa_table(samps,
                   longtable = TRUE,
                   placement = "ht",
                   font_size = "small", 
+                  stub_indents = list(`Main effects` = 1:8, 
+                                      `Interactions`= 9:20),
                   col_spanners = list(`Experiment 1: Adults` = c(2,4),
                                       `Experiment 2: Children` = c(5,7)),
-                  note = "$\\hat{\\mu}$ indicates the most probable \\textit{a posteriori} parameter value. 95\\% HPDI is the range containing 95\\% of the posterior probability mass. $P(\\hat{\\mu}<0)$ is the posterior probability that the true parameter value is smaller than 0. '*' indicates interactions.",
+                  note = "$\\hat{\\mu}$ indicates the most probable \\textit{a posteriori} parameter value. 95\\% HPDI is the range containing 95\\% of the posterior probability mass. $P(\\hat{\\mu}<0)$ is the posterior probability that the true parameter value is smaller than 0. '$\\times$' indicates interactions.",
                   digits = 0,
                   caption = "\\label{tab:fixedeffects}Fixed effects summary of the models fitted for the reaction-time data of Experiment 1 and Experiment 2. Shown are the estimated effects for Adjacency (levels: adjacent, nonadjacent), Dependency (levels: dependency, baseline), Block (levels: 1-7), and all by-Block 2-way interactions with Dependency and Adjacency. Effects summarised as the most probable parameter value $\\hat{\\mu}$ with 95\\% HPDIs are shown in msecs.")
 ```

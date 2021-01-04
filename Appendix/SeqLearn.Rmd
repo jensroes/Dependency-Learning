@@ -1,0 +1,405 @@
+---
+title             : "Results"
+shorttitle             : "Results"
+
+author: 
+  - name          : "Jens Roeser"
+    affiliation   : "1"
+    address       : "50 Shakespeare St, Nottingham NG1 4FQ"
+    corresponding : no    # Define only one corresponding author
+    email         : "jens.roeser@ntu.ac.uk"
+
+
+affiliation:
+  - id            : "1"
+    institution   : "Department of Psychology, Nottingham Trent University, United Kingdom"
+
+
+bibliography      : ["ref.bib"]
+
+documentclass     : "apa7"
+class             : "man"
+output            :
+#  papaja::apa6_word:
+#  papaja::apa6_docx:
+  papaja::apa6_pdf:
+      fig_crop: no
+      includes:
+        after_body: 
+          - "appendix.tex"
+  
+figsintext        : yes
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+lineno            : no
+mask              : no
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{array}
+  - \usepackage{multirow}
+  - \usepackage{wrapfig}
+  - \usepackage{float}
+  - \usepackage{colortbl}
+  - \usepackage{pdflscape}
+  - \usepackage{tabu}
+  - \usepackage{threeparttable}
+  - \usepackage[normalem]{ulem}
+  - \usepackage[utf8]{inputenc}
+
+---
+
+
+```{r load_packages, include=FALSE, message=FALSE}
+source("../Adults/functions/functions.R")
+library(magrittr)
+library(stringr)
+options(kableExtra.auto_format = FALSE)
+library(kableExtra)
+library(tidyverse)
+library(gridExtra)
+library(knitr)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(rethinking)
+library(brms)
+library(grid)
+library(papaja)
+dev.args = list(pdf = list(type = "cairo"))
+knitr::opts_chunk$set(dev = "cairo_pdf")
+children <- read_csv("../Children/data/seqlearn.csv")
+#length(unique(children$subj))
+adults <- read_csv("../Adults/data/seqlearn.csv")
+#length(unique(adults$subj))
+```
+
+```{r render_appendix, include=FALSE}
+render_appendix("appendix.Rmd")
+```
+
+
+# Method: Adults
+
+## Participants
+
+
+
+```{r}
+adults %>%
+  group_by(subj) %>%
+  summarise(acc = mean(acc)*100) %>%
+  summarise(M = median(acc),
+            IQR = IQR(acc),
+            min = min(acc),
+            max = max(acc)) %>%
+  round(2) -> ch
+
+incorr  <- (prop.table(table(adults$acc)) * 100)[1] %>% round(2)
+
+init <- round(length(which(is.na(adults$dependency2)))/nrow(adults) * 100,2)
+
+fast <- (prop.table(table(adults$rt > 100 & adults$rt < 10000))*100)[1] %>% round(2)
+
+```
+
+# Results: Adults
+
+Adult's median response accuracy was `r ch$M`% (IQR = `r ch$IQR`, range = `r ch$min`%-`r ch$max`%), suggesting that responses to each element were made with high accuracy. For the analysis we removed incorrect responses (`r incorr`%). Based on previous serial reaction times studies, we moved responses that were faster than 100 msecs and slower than 10,000 msecs (`r fast`%). Reaction times for the beginning elements of the dependencies were not included in the analysis (`r init`%). Finally we excluded G-key responses where children tended to rest their hands (11%). This key was not involved in any of the dependencies. 
+
+We used the same analysis tools as described in the previous experiment.
+
+## Serial Reaction Time
+
+The reaction times for the responses to the ending elements of dependencies were extracted for Block 1 to 7 and modelled in Bayesian linear mixed effects models. Model predictors were Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent), Block and all by-Block interactions of Dependency and Adjacency. The model was used to infere the parameter distributions for each Dependency and by Block after accounting variance attributed to participants, stimulus image and repetitions. These statistically derived parameter values can be found in Figure \ref{fig:adults}.       
+
+
+
+```{r echo=FALSE, out.width='\\textwidth', fig.width=7, fig.height=4, fig.cap="\\label{fig:adults}Summary of posterior reaction time data inferred from the Bayesian mixed effects model. Dots indicate the most probable a posteriori parameter $\\mu$, and error bars show 95\\% HPDIs."}
+
+read_csv("../Adults/stanout/post_by_cond.csv") %>%
+  mutate(Dependency = ifelse(Dependency == "none", "baseline", Dependency)) %>%
+  mutate(Dependency = factor(Dependency, levels = c("adjacent", "nonadjacent", "baseline"), ordered = T)) %>%
+  group_by(Block, Dependency) %>%
+  dplyr::summarise(M = median(RT),
+                   Lower = HPDI(RT, prob = .95)[1],
+                   Upper = HPDI(RT, prob = .95)[2]) %>%
+  ggplot(aes(x = Block, y = M, 
+             color = Dependency, 
+             linetype = Dependency, 
+             ymin = Lower, ymax = Upper,
+             group = interaction(Dependency))) +
+  theme_minimal() +
+  geom_errorbar(width = .0, position = position_dodge(.5)) +
+  geom_point(size = 2, position = position_dodge(.5)) +
+  geom_line(position = position_dodge(.5)) +
+  ggtitle("Modelled serial reaction time data (adults)") +
+  scale_colour_manual(name  = "Dependency:", values =  c("black", "black", "grey50")) +
+  scale_linetype_manual(name  = "Dependency:",values = c("solid", "dashed", "dotted")) +
+  theme(legend.justification = "right",
+        legend.position = "bottom",
+        legend.key.width = unit(1.25, "cm")) +
+  labs(y = bquote(atop("Most probable parameter value "~hat(mu),"with 95% HPDIs (in msecs)"))) +
+  scale_y_continuous(breaks = seq(800, 2100, 100)) +
+  scale_x_continuous(breaks = seq(1, 7, 1)) 
+
+ggsave("Figures/SRTdata_adults.png", width = 7, height = 4)
+
+
+```
+
+```{r}
+read_csv("../Adults/stanout/post_by_cond.csv") %>%
+  mutate(Dependency = ifelse(Dependency == "none", "baseline", Dependency)) %>%
+  mutate(Dependency = factor(Dependency, levels = c("adjacent", "nonadjacent", "baseline"), ordered = T)) %>%
+  filter(Block %in% c(6,7)) %>%
+  group_by(Block) %>%
+  mutate(row_id = 1:n()) %>%
+  spread(Block, RT) %>%
+  mutate(diff = `7`-`6`) %>%
+  group_by(Dependency) %>%
+  summarise(M = dmode(diff),
+            lo = HPDI(diff, prob = .95)[1],
+            hi = HPDI(diff, prob = .95)[2],
+            p = mean(diff > 0)) %>% 
+  ungroup() %>%
+  mutate_at(vars(M, lo, hi), round, 0) %>%
+  mutate_at(vars(p), round, 3) -> slowdown
+
+
+read_csv("../Adults/stanout/post_by_cond.csv") %>%
+  mutate(Dependency = ifelse(Dependency == "none", "baseline", Dependency)) %>%
+  mutate(Dependency = factor(Dependency, levels = c("adjacent", "nonadjacent", "baseline"), ordered = T)) %>%
+  filter(Block %in% 1:6) %>%
+  group_by(Dependency) %>%
+  mutate(row_id = 1:n()) %>%
+  spread(Dependency, RT) %>%
+  mutate(adj = adjacent - baseline,
+         nonadj = nonadjacent - baseline
+         #adj_to_nonadj = adjacent - nonadjacent
+         ) %>%
+  dplyr::select(-row_id:-baseline) %>%
+  gather(Dependency, diff, adj:nonadj) %>%
+  group_by(Dependency) %>%
+    summarise(M = dmode(diff),
+            lo = HPDI(diff, prob = .95)[1],
+            hi = HPDI(diff, prob = .95)[2]) %>%
+  arrange(Dependency) %>% round_df(0) -> blockslow
+
+read_csv("../Adults/stanout/post_by_cond.csv") %>%
+  mutate(Dependency = ifelse(Dependency == "none", "baseline", Dependency)) %>%
+  mutate(Dependency = factor(Dependency, levels = c("adjacent", "nonadjacent", "baseline"), ordered = T)) %>%
+  filter(Block %in% 5) %>%
+  group_by(Dependency) %>%
+  mutate(row_id = 1:n()) %>%
+  spread(Dependency, RT) %>%
+  mutate(adj = adjacent - baseline,
+         nonadj = nonadjacent - baseline
+         #adj_to_nonadj = adjacent - nonadjacent
+         ) %>%
+  select(-row_id:-baseline) %>%
+  gather(Dependency, diff, adj:nonadj) %>%
+  group_by(Dependency) %>%
+    summarise(M = dmode(diff),
+            lo = HPDI(diff, prob = .95)[1],
+            hi = HPDI(diff, prob = .95)[2]) %>%
+  arrange(Dependency) %>% round_df(0) -> block5
+
+
+read_csv("../Adults/stanout/shifted_lognormal_impl_learning_adults_posterior.csv")  %>%
+  dplyr::select(-b_ndt_Intercept, -b_scaletrial_in_block) %>%
+  rename(Int = b_Intercept) %>%
+  mutate_at(vars(starts_with('b_')), list(~ (exp(Int + ./4) - exp(Int)))) %>%
+  dplyr::select(starts_with('b_')) %>%
+  gather(Param, value) %>%
+  mutate(Param = gsub(Param, pattern = "b_COND", replacement = "")) %>%
+  mutate(Param = gsub(Param, pattern = "MU", replacement = ":")) %>%
+  mutate(Param = gsub(Param, pattern = "M", replacement = "-")) %>%
+  group_by(Param) %>%
+  summarise(M = dmode(value),
+            lo = HPDI(value,prob = .95)[1],
+            hi = HPDI(value,prob = .95)[2],
+            p = mean(value < 0)) %>%  ungroup() %>%
+  mutate_at(vars(M, lo, hi), round, 0) %>%
+  mutate_at(vars(p), round, 3) -> results  
+
+
+```
+
+
+
+Figure \ref{fig:adults} shows that reaction times speeded up from Block 1 to 4, remained relatively stable until they slowed down from Block 6 to Block 7. From Block 1 to Block 6, reaction times were consistently faster for nonadjacent dependencies compared to the baseline trials ($\hat\mu$ = `r blockslow[blockslow$Dependency == "nonadj",]$M` msecs, 95% HPDI[`r blockslow[blockslow$Dependency == "nonadj",]$lo`, `r blockslow[blockslow$Dependency == "nonadj",]$hi`]) but not for adjacent dependencies ($\hat\mu$ = `r blockslow[blockslow$Dependency == "adj",]$M` msecs, 95% HPDI[`r blockslow[blockslow$Dependency == "adj",]$lo`, `r blockslow[blockslow$Dependency == "adj",]$hi`]). Only in Block 5, reaction times were found to be faster for adjacent dependencies compared to the baseline trials ($\hat\mu$ = `r block5[block5$Dependency == "adj",]$M` msecs, 95% HPDI[`r block5[block5$Dependency == "adj",]$lo`, `r block5[block5$Dependency == "adj",]$hi`]). This early adaptation to nonadjacent dependencies and late adaptation to adjacent dependencies was supported by an interaction of Adjacency and Block 4-5 ($\hat\mu$ = `r results[results$Param == "Adjacency:Block4-5",]$M` msecs, 95% HPDI[`r results[results$Param == "Adjacency:Block4-5",]$lo`, `r results[results$Param == "Adjacency:Block4-5",]$hi`]).
+
+
+Importantly we found evidence for an interaction of Dependency and Block 6-7 ($\hat\mu$ = `r results[results$Param == "Dependency:Block6-7",]$M` msecs, 95% HPDI[`r results[results$Param == "Dependency:Block6-7",]$lo`, `r results[results$Param == "Dependency:Block6-7",]$hi`]) with a posterior probability of \textit{P}($\hat\mu < 0$) = `r results[results$Param == "Dependency:Block6-7",]$p`. In the transfer Block 7 a slow-down of `r slowdown[slowdown$Dependency == "adjacent",]$M` msecs (95% HPDI[`r slowdown[slowdown$Dependency == "adjacent",]$lo`, `r slowdown[slowdown$Dependency == "adjacent",]$hi`]) was found for adjacent dependencies, a slow-down of `r slowdown[slowdown$Dependency == "nonadjacent",]$M` msecs (95% HPDI[`r slowdown[slowdown$Dependency == "nonadjacent",]$lo`, `r slowdown[slowdown$Dependency == "nonadjacent",]$hi`]) for nonadjacent dependencies, but a slow-down of `r slowdown[slowdown$Dependency == "baseline",]$M` msecs (95% HPDI[`r slowdown[slowdown$Dependency == "baseline",]$lo`, `r slowdown[slowdown$Dependency == "baseline",]$hi`]) for the baseline trials. 
+
+This slow-down in Block 7 was found with a probability of \textit{P}($\Delta\hat\mu > 0$) = `r slowdown[slowdown$Dependency == "adjacent",]$p` for adjacent dependencies, a probability of \textit{P}($\Delta\hat\mu > 0$) = `r slowdown[slowdown$Dependency == "nonadjacent",]$p` for nonadjacent dependencies, and a probability of \textit{P}($\Delta\hat\mu > 0$) = `r slowdown[slowdown$Dependency == "baseline",]$p` for baseline trials. 
+
+These results suggest that although nonadjacent dependencies were learnt faster than adjacent dependencies, the interruption of dependencies in the transfer block affected responses to dependencies to the same extent and more than compared to baseline stimuli.
+
+```{r}
+read_csv("../Adults/stanout/post_by_cond.csv") %>%
+  mutate(Dependency = ifelse(Dependency == "none", "baseline", Dependency)) %>%
+  mutate(Dependency = factor(Dependency, levels = c("adjacent", "nonadjacent", "baseline"), ordered = T)) %>%
+  filter(Block %in% c(6,7)) %>%
+  group_by(Dependency) %>%
+  mutate(row_id = 1:n()) %>%
+  spread(Dependency, RT) %>%
+  mutate(adj = adjacent - baseline,
+         nonadj = baseline - nonadjacent,
+         adj_to_nonadj = adjacent - nonadjacent) %>%
+  select(-row_id:-baseline) %>%
+  gather(Dependency, diff, adj:adj_to_nonadj) %>%
+  group_by(Block, Dependency) %>%
+  summarise(M = dmode(diff),
+            lo = HPDI(diff, prob = .95)[1],
+            hi = HPDI(diff, prob = .95)[2]) %>% 
+  filter(Block == 7) -> slowdown
+
+```
+
+
+
+
+
+# Method: Children
+
+```{r}
+#readODS::read_ods("../Children/data/EJraw2.ods")
+```
+
+
+## Participants
+
+```{r}
+#`r (nrow(d))` participants took part in the experiment (`r table(d$sex)[1]` females, `r table(d$sex)[2]` males), with an age range of `r min(d$age, na.rm=T)`--`r max(d$age, na.rm=T)` years (median = `r median(d$age, na.rm=T)`, $SD$ = `r sd(d$age, na.rm=T)`). This sample contains `r L1[2]` native and `r L1[1]` non-native speakers of English. 
+```
+
+
+
+
+# Results: Children
+
+```{r}
+children %>%
+  group_by(subj) %>%
+  summarise(acc = mean(acc)*100) %>%
+  summarise(M = median(acc),
+            IQR = IQR(acc),
+            min = min(acc),
+            max = max(acc)) %>%
+  round(2) -> ch
+incorr  <- (prop.table(table(children$acc)) * 100)[1] %>% round(2)
+init <- round(length(which(is.na(children$dependency2)))/nrow(children) * 100,2)
+fast <- (prop.table(table(children$rt > 100 & children$rt < 10000))*100)[1] %>% round(2)
+```
+
+
+Children's median response accuracy was `r ch$M`% (IQR = `r ch$IQR`, range = `r ch$min`%-`r ch$max`%), suggesting that responses to each element by pressing the corresponding key were made with high accuracy. For the analysis we removed incorrect responses (`r incorr`%). Based on previous serial reaction times studies, we moved responses that were faster than 100 msecs and slower than 10,000 msecs (`r fast`%). Reaction times for the beginning elements of the dependencies were not included in the analysis (`r init`%). Finally we excluded G-key responses where children tended to rest their hands (11%). This key was not involved in any of the dependencies. 
+
+Data were analysed in Bayesian linear mixed effects models (Gelman et al., 2014; Kruschke, 2014; McElreath, 2016). The R package brms [@brms1;@brms2] was used to model the data using the probabilistic programming language Stan (Carpenter et al., 2016; Hoffman & Gelman, 2014; Stan Development Team, 2015). All models were fitted with maximal random effects structure (Barr, Levy, Scheepers, & Tily, 2013; Bates, Kliegl, Vasishth, & Baayen, 2015) for participants and random intercepts for each stimulus image.
+
+Our statistical inference was based on the modelled parameter distributions expressed as the most probable posterior parameter values $\mu$ as well as their 95% Highest Posterior Density Interval (henceforth, HPDI) - the shortest interval containing 95% of the posterior probability mass (Kruschke, Aguinis, & Joo, 2012; Sorensen, Hohenstein, & Vasishth, 2016). These modelled data allow for direct statistical inference of patterns in the data and differences between conditions after accounting for variance that can be attributed to differences between participants, stimulus images, or repetition.^[Models were fitted with weakly informative priors (see McElreath, 2016) and run with 8,000 iterations on 3 chains with a warm-up of 4,000 iterations and no thinning. Model convergence was confirmed by the Rubin-Gelman statistic (Gelman & Rubin, 1992) and inspection of the Markov chain Monte Carlo chains.]
+
+
+## Serial Reaction Time
+
+The reaction times for the responses to the ending elements of dependencies were extracted for Block 1 to 7 and modelled in Bayesian linear mixed effects models. The reaction times for all elements that were not part of an adjacent or nonadjacent dependency were included in the model and treated as baseline. Model predictors were Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent), Block (levels: 1-7) and all by-Block 2-way interactions of Dependency and Adjacency. 
+
+Reaction time data were fitted as shifted-lognormal distributions as frequently used in modelling literature [@heathcote1991analysis;@heathcote2004qmpe;@wagenmakers2007linear]. Partially pooled by-participant slope adjustments were included for trial order within blocks. This type of analysis differs from previous SRT studies which used aggregated response times (i.e., median reaction times) which artificially reduces the variance within blocks, and skewes reaction time values and therefore model estimates. 
+
+The Bayesian model was used to infere the parameter distributions for each Dependency and by Block after accounting variance attributed to participants, stimulus images and repetitions. These statistically derived parameter values can be found in Figure \ref{fig:children}.       
+
+
+```{r pressure, echo=FALSE, out.width='\\textwidth', fig.width=7, fig.height=4, fig.cap="\\label{fig:children}Summary of posterior reaction time data inferred from the Bayesian mixed effects model. Dots indicate the most probable a posteriori parameter $\\mu$, and error bars show 95\\% HPDIs."}
+
+read_csv("../Children/stanout/post_by_cond.csv") %>%
+  mutate(Dependency = ifelse(Dependency == "none", "baseline", Dependency)) %>%
+  mutate(Dependency = factor(Dependency, levels = c("adjacent", "nonadjacent", "baseline"), ordered = T)) %>%
+  group_by(Block, Dependency) %>%
+  dplyr::summarise(M = median(RT),
+                   Lower = HPDI(RT, prob = .95)[1],
+                   Upper = HPDI(RT, prob = .95)[2]) %>%
+  ggplot(aes(x = Block, y = M, 
+             color = Dependency, 
+             linetype = Dependency, 
+             ymin = Lower, ymax = Upper,
+             group = interaction(Dependency))) +
+  theme_minimal() +
+  geom_errorbar(width = .0, position = position_dodge(.5)) +
+  geom_point(size = 2, position = position_dodge(.5)) +
+  geom_line(position = position_dodge(.5)) +
+  ggtitle("Modelled serial reaction time data (children)") +
+  scale_colour_manual(name  = "Dependency:", values =  c("black", "black", "grey50")) +
+  scale_linetype_manual(name  = "Dependency:",values = c("solid", "dashed", "dotted")) +
+  theme(legend.justification = "right",
+        legend.position = "bottom",
+        legend.key.width = unit(1.25, "cm")
+        ) +
+  labs(y = bquote(atop("Most probable parameter value "~hat(mu),"with 95% HPDIs (in msecs)"))) +
+  scale_y_continuous(breaks = seq(800, 2100, 100)) +
+  scale_x_continuous(breaks = seq(1, 7, 1))
+ggsave("Figures/SRTdata_children.png", width = 7, height = 4)
+
+```
+
+```{r}
+read_csv("../Children/stanout/post_by_cond.csv") %>%
+  mutate(Dependency = ifelse(Dependency == "none", "baseline", Dependency)) %>%
+  mutate(Dependency = factor(Dependency, levels = c("adjacent", "nonadjacent", "baseline"), ordered = T)) %>%
+  filter(Block %in% c(6,7)) %>%
+  group_by(Block) %>%
+  mutate(row_id = 1:n()) %>%
+  spread(Block, RT) %>%
+  mutate(diff = `7`-`6`) %>%
+  group_by(Dependency) %>%
+  summarise(M = dmode(diff),
+            lo = HPDI(diff, prob = .95)[1],
+            up = HPDI(diff, prob = .95)[2],
+            p = mean(diff > 0)) %>% ungroup() %>%
+  mutate_at(vars(M, lo, up), round, 0) %>%
+  mutate_at(vars(p), round, 3) -> slowdown
+
+# Highlight the proportion of slowdowns of nonadjacet
+read_csv("../Children/stanout/shifted_lognormal_impl_learning_children_posterior.csv")  %>%
+  select(-b_ndt_Intercept, -b_scaletrial_in_block) %>%
+  rename(Int = b_Intercept) %>%
+  mutate_at(vars(starts_with('b_')), list(~ (exp(Int + ./4) - exp(Int)))) %>%
+  select(starts_with('b_')) %>%
+  gather(Param, value) %>%
+  mutate(Param = gsub(Param, pattern = "b_COND", replacement = "")) %>%
+  mutate(Param = gsub(Param, pattern = "MU", replacement = ":")) %>%
+  mutate(Param = gsub(Param, pattern = "M", replacement = "-")) %>%
+  group_by(Param) %>%
+  summarise(M = dmode(value),
+            lo = HPDI(value,prob = .95)[1],
+            up = HPDI(value,prob = .95)[2],
+            p = mean(value < 0)) %>% ungroup() %>%
+  mutate_at(vars(M, lo, up), round, 0) %>%
+  mutate_at(vars(p), round, 3) -> results  
+
+```
+
+
+Figure \ref{fig:children} shows that reaction times speeded up from Block 1 to 2, remained relatively stable until they slowed down from Block 6 to Block 7. Importantly in the transfer Block 7 we observed a slow-down of `r slowdown[slowdown$Dependency == "adjacent",]$M` msecs (95% HPDI[`r slowdown[slowdown$Dependency == "adjacent",]$lo`, `r slowdown[slowdown$Dependency == "adjacent",]$up`]) for adjacent dependencies, a slow-down of `r slowdown[slowdown$Dependency == "nonadjacent",]$M` msecs (95% HPDI[`r slowdown[slowdown$Dependency == "nonadjacent",]$lo`, `r slowdown[slowdown$Dependency == "nonadjacent",]$up`]) for nonadjacent dependencies, and a slow-down of `r slowdown[slowdown$Dependency == "baseline",]$M` msecs (95% HPDI[`r slowdown[slowdown$Dependency == "baseline",]$lo`, `r slowdown[slowdown$Dependency == "baseline",]$up`]) for the baseline stimuli. This larger slow-down for dependencies compared to baseline stimuli was weakly supported by evidence for an interaction of Dependency and Block 6-7 ($\hat\mu$ = `r results[results$Param == "Dependency:Block6-7",]$M` msecs, 95% HPDI[`r results[results$Param == "Dependency:Block6-7",]$lo`, `r results[results$Param == "Dependency:Block6-7",]$up`]) with a posterior probability of \textit{P}($\hat\mu < 0$) = `r results[results$Param == "Dependency:Block6-7",]$p`. 
+
+From the posterior estimates we calculated the probability to observe longer values (i.e. a positive difference) in Block 7 compared to Block 6 (i.e. \textit{P}($\Delta\hat\mu > 0$)).  The show-down in Block 7 was found with a probability of \textit{P}($\Delta\hat\mu > 0$) = `r slowdown[slowdown$Dependency == "adjacent",]$p` for adjacent dependencies, a probability of \textit{P}($\Delta\hat\mu > 0$) = `r slowdown[slowdown$Dependency == "nonadjacent",]$p` for nonadjacent dependencies, and a probability of \textit{P}($\Delta\hat\mu > 0$) = `r slowdown[slowdown$Dependency == "baseline",]$p` for baseline trials. 
+
+These results indicate that the interruption of dependencies in the transfer block affected responses to all stimulus images but had a larger effect on the reaction times for dependencies compared to baseline stimuli. 
+
+
+
+
+# References
+```{r create_r-references, echo=FALSE, include=FALSE}
+r_refs(file = "ref.bib")
+```
+
+\begingroup
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
+  
+<div id = "ref"></div>
+\endgroup
+  
+
+

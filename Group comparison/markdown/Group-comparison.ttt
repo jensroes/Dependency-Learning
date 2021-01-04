@@ -1,0 +1,45 @@
+\begin{table*}[hbt]
+\ifnextchar[{\eatarg}{}
+[ht]
+
+\begin{center}
+\begin{threeparttable}
+
+\caption{\label{tab:tablemodel}Age-group comparison. Shown are the estimated parameter values (in msecs) for main effects and interactions of Age Group (levels: adults, children), Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent).}
+
+\small{
+
+\begin{tabular}{lrrr}
+\toprule
+Predictor & \multicolumn{1}{c}{$\hat{\mu}$} & \multicolumn{1}{c}{95\% HPDI} & \multicolumn{1}{c}{$P(\hat{\mu}<0)$}\\
+\midrule
+Main effects &  &  & \\
+\ \ \ Age Group & -391 & [-455, -330] & >.999\\
+\ \ \ Dependency & 8 & [-29, 48] & .316\\
+\ \ \ Adjacency & -9 & [-37, 21] & .714\\
+\ \ \ Block & -68 & [-104, -33] & >.999\\
+Interactions &  &  & \\
+\ \ \ Dependency $\times$ Block & -36 & [-75, 10] & .933\\
+\ \ \ Adjacency $\times$ Block & -11 & [-42, 21] & .765\\
+\ \ \ Age $\times$ Block & -82 & [-112, -50] & >.999\\
+\ \ \ Age $\times$ Dependency & -66 & [-95, -34] & >.999\\
+\ \ \ Age $\times$ Adjacency & -13 & [-41, 12] & .86\\
+\ \ \ Dependency $\times$ Block $\times$ Age & -39 & [-73, -8] & .99\\
+\ \ \ Adjacency $\times$ Block $\times$ Age & 68 & [34, 108] & <.001\\
+Variance components &  &  & \\
+\ \ \ $\sigma_{adults}$ & 0.28 & [0.27, 0.29] & --\\
+\ \ \ $\sigma_{children}$ & 0.37 & [0.36, 0.38] & --\\
+\bottomrule
+\addlinespace
+\end{tabular}
+
+}
+
+\begin{tablenotes}[para]
+\normalsize{\textit{Note.} $\hat{\mu}$ = most probable parameter value; 95\% HPDI = interval containing 95\% of the probability mass; $P(\hat{\mu}<0)$ = probability of the true parameter value being smaller than 0.}
+\end{tablenotes}
+
+\end{threeparttable}
+\end{center}
+
+\end{table*}

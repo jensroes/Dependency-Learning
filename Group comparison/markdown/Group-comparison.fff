@@ -1,0 +1,10 @@
+\begin{figure*}[hbt]
+\ifnextchar[{\eatarg}{}
+[ht]
+
+{\centering \includegraphics{Group-comparison_files/figure-latex/plotgroupcomp-1}
+
+}
+
+\caption{Modelled serial reaction-time data (group comparison). Reaction-time data are shown for each age group for the final two blocks (block 7 is the transfer block). Shown are the modelled reaction-time data with 95\% HPDI (in msecs) for both adjacency conditions (adjacent, nonadjacent) and the baseline condition.}\label{fig:plotgroupcomp}
+\end{figure*}

@@ -1,0 +1,262 @@
+---
+title:            "Dependency learning: comparing adults and children"
+shorttitle:       "Dependency learning"
+csl               : "apa.csl" 
+
+author: 
+  - name          : "Jens Roeser"
+    affiliation   : "1"
+    address       : "50 Shakespeare St, Nottingham NG1 4FQ"
+    corresponding : yes 
+    email         : "jens.roeser@ntu.ac.uk"
+
+affiliation:
+  - id            : "1"
+    institution   : "Department of Psychology, Nottingham Trent University, United Kingdom"
+
+
+abstract: |
+
+
+keywords: ""
+
+
+bibliography      : ["references.bib"]
+
+
+documentclass     : "apa7"
+classoption       : "man"
+output            : 
+  papaja::apa6_pdf:
+    keep_tex: TRUE
+#  papaja::apa6_docx:
+#    keep_tex: TRUE
+#    reference_docx: xxx.docx
+
+
+figsintext        : yes
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+lineno            : no
+mask              : no
+csquotes          : true
+
+
+header-includes:
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{graphicx}
+  - \usepackage{array}
+  - \usepackage{float}
+  - \usepackage{threeparttable}
+  - \usepackage[normalem]{ulem}
+  - \usepackage[utf8]{inputenc}
+  - \usepackage{icomma}
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(papaja)
+library(kableExtra)
+library(citr) # CRTL + Shift + R for citations
+library(tidyverse)
+library(magrittr)
+library(brms)
+library(rethinking)
+library(bayestestR)
+source("../../functions/functions.R")
+```
+
+
+# Comparisons between children and adults
+
+
+In this final analysis we evaluate differences between the adults (Experiment 1) and the children results (Experiment 2). In particular, we focused on the effect of main interest to evaluate implicit learning; i.e. the slowdown in reaction times in the transfer block (Block 7) relative to Block 6. Also we tested for differences in the initial learning stage from Block 1 to Block 2 for which we observed differences in the results section of Experiment 1 and Experiment 2. To compared the data from adults and children we pooled the serial reaction-time data from both experiments and extracted the data from Blocks 1 and 2, and 6 and 7. 
+
+This analysis was largely similar to the reaction-time models reported earlier: reaction times were modelled in Bayesian linear mixed-effects models. Reaction times for elements that were not part of an adjacent or nonadjacent dependency were included in the model as baseline. Model predictors were Age Group (levels: adults, children), Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent), Learning Block (levels: 1, 2), Transfer Block (levels: 6, 7), and all by-Dependency and by-Adjacency interactions with Group and Block. All predictors were sum-coded following @schad2020capitalize. Reaction time data were ﬁtted with a shifted-lognormal distribution, random intercepts for each stimulus image, and participants with by-participant slope adjustments for all main effects and interactions. 
+
+In addition to the parameter estimates as in the previous results sections, we used the posterior to calculate the standardised effect sizes $\delta$, defined as $\delta = \frac{\mu}{\sigma}$ , where $\mu$ is the parameter value of the effect of interest and $\sigma$ is the standard deviation. The effect size was calculated to allow comparisons across age group [@wagenmakers2010bayesian]. Because the standard deviation is necessary to calculate the effect size, we specified the model with two different variance components, one for the children group and one for the adults group as the population standard deviation is likely to be different for each group [@baguley2009standardized]. 
+
+For the effect sizes, we determined the region of practical equivalence (henceforth, ROPE) to assess the uncertainty of the effect size [@makowski2019bayestestr]. The ROPE is the range of values that are practically equivalent to a null effect [see e.g. @kruschke2010believe; @kruschke2011bayesian]. For the effect size we set the ROPE to be -0.1 and 0.1 [@kruschke2018rejecting] which is the range of negligible effect sizes [@cohn1988statistical]. The value returned is the proportion of posterior samples (of the effect size) that falls inside the ROPE. In other words, the ROPE value indicates the extent to which the posterior cannot rule out an negligible effect. A meaningful effect size should have a small proportion of posterior samples within the ROPE. 
+
+
+
+```{r}
+samps <- read_csv("../../Group comparison/posterior/group_model_v2.csv")
+
+samps_rt <- samps %>%
+  as_tibble() %>%
+  mutate_at(vars(starts_with("b_COND")), list(~ (exp(b_Intercept + ./8) - exp(b_Intercept)))) %>%
+  mutate_at(vars(ends_with("Intercept")), exp) %>%
+  dplyr::select(starts_with("b_"), -contains("ndt"))
+
+#names(samps_rt)
+coln <- c("Age Group", "Dependency", "Adjacency", "Block: 1 vs 2", "Block: 6 vs 7", "Block: 2 vs 6", "Age * Dependency",  "Age * Adjacency", "Age * Block (1 vs 2)", "Age * Block (6 vs 7)", "Age * Block (2 vs 6)", "Dependency * Block (1 vs 2)",  "Dependency * Block (6 vs 7)", "Dependency * Block (2 vs 6)", "Adjacency * Block (1 vs 2)", "Adjacency * Block (6 vs 7)", "Adjacency * Block (2 vs 6)", "Dependency * Block (1 vs 2) * Age", "Dependency * Block (6 vs 7) * Age", "Dependency * Block (2 vs 6) * Age", "Adjacency * Block (1 vs 2) * Age", "Adjacency * Block (6 vs 7) * Age", "Adjacency * Block (2 vs 6) * Age")
+
+names(samps_rt) <- c("(Intercept)", coln, "Repetition within block", "Sigma_adults", "Sigma_children")
+predlevels <- c("(Intercept)", coln, "Repetition within block", "Sigma_adults", "Sigma_children")
+
+samps_rt_summary <- samps_rt %>%  
+  pivot_longer(everything(), names_to = "param", values_to = "value") %>%
+  mutate(param = factor(param, levels = predlevels, ordered = T)) %>%
+  filter(!(param %in% c("Repetition within block"))) %>%
+  group_by(param) %>%
+  summarise(Med = dmode(value),
+            Lo = rethinking::HPDI(value, prob = .95)[1],
+            Up = rethinking::HPDI(value, prob = .95)[2],
+            p = mean(value < 0 )) %>% ungroup() %>%
+  mutate_at(vars(p), round, 3) %>%
+  mutate(Lo = ifelse(param %in% c("Sigma_adults", "Sigma_children"), round(exp(Lo),2), round(Lo,0))) %>%
+  mutate(Up = ifelse(param %in% c("Sigma_adults", "Sigma_children"), round(exp(Up),2), round(Up,0))) %>%
+  mutate(p = ifelse(p == 0, 0.001, 
+                    ifelse(p == 1, 0.999, p)),
+    p = as.character(as.numeric(paste0(p))),
+    p = gsub("0\\.", ".", p),
+    p = replace(p, p == ".001", "<.001"),
+    p = replace(p, p == ".999", ">.999"),
+    p = ifelse(param %in% c("(Intercept)", "Sigma_adults", "Sigma_children"), "--", p)) %>%
+  unite(Lo:Up, col = "PI", sep = ", ") %>%
+  mutate(PI = paste0("[", PI, "]")) %>%
+  rename(Parameter = param) %>%
+  mutate(Parameter = as.character(Parameter))
+
+summary <- samps_rt_summary %>%
+  mutate(Med = ifelse(Parameter %in% c("Sigma_adults", "Sigma_children"), round(exp(Med),2), round(Med,0))) %>%
+  mutate(Med = as.character(Med)) %>%
+  replace(is.na(.), "--") %>%
+  filter(Parameter != "(Intercept)") %>%
+  mutate(Parameter = gsub("\\*", "$\\\\times$", Parameter),
+         Parameter = gsub("Sigma_adults", "$\\\\sigma_{adults}$", Parameter),
+         Parameter = gsub("Sigma_children", "$\\\\sigma_{children}$", Parameter)) %>%
+  filter(!grepl("2 vs 6", Parameter)) %>%
+  mutate(Parameter = ifelse(grepl("1 vs 2", Parameter), gsub("1 vs 2", "Learning", Parameter), Parameter),
+         Parameter = ifelse(grepl("6 vs 7", Parameter), gsub("6 vs 7", "Transfer", Parameter), Parameter))
+```
+
+Table \ref{tab:tablemodel} summaries the modelling outcome for the serial reaction-time data. We found compelling evidence for longer reaction times for children compared to adults. Also, overall we found evidence that adjacent dependencies were responded to faster than nonadjacent dependencies. Reaction times were faster for Block 2 than for Block 1 and longer for Block 7 compared to Block 6. Further evidence was found for two-way interactions of Age Group and Dependency, and Age Group and Learning Block. Importantly, we found evidence for a three-way interactions of Dependency by Transfer Block and Age Group. The variance of the children group $\sigma_{children}$ was larger than the variance of the adults group $\sigma_{adults}$. There was negligible evidence for all remaining predictors.
+
+```{r tablemodel,  results='asis'}
+names(summary) <- c("Predictor", "$\\hat{\\mu}$", "95\\% HPDI", "$P(\\hat{\\mu}<0)$")
+
+papaja::apa_table(summary, align =  "lrrr", 
+                  escape = FALSE, placement = "ht", row.names = T, 
+                  stub_indents = list(`Main effects` = 1:5, 
+                                      `Two-way interactions`= 6:13,
+                                      `Three-way interactions`= 14:17,
+                                      `Variance components` = 18:19),
+                  digits = 0, font = "small",longtable = TRUE,
+                  caption = "Age-group comparison for serial reaction-time data. Estimated parameter values (in msecs) for main effects and interactions of Learning Block (levels: 1, 2) and Transfer Block (levels: 6, 7), Age Group (levels: adults, children), Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent).", 
+                  note = "$\\hat{\\mu}$ = most probable parameter value; 95\\% HPDI = interval containing 95\\% of the probability mass; $P(\\hat{\\mu}<0)$ = probability of the true parameter value being smaller than 0.") 
+
+```
+
+
+
+
+```{r}
+es <- read_csv("../../Group comparison/posterior/by_group_effectsize_v2.csv") %>%
+  dplyr::select(-ends_with(".x"),-P) %>%
+  mutate(ROPE = paste0(round(ROPE,0), "%")) %>%
+  mutate_if(is.numeric, round, 2)
+
+adults_adj_trans <- es %>% filter(Group == "adults", Dep == "adjacent", Parameter == "transfer") %>% dplyr::select(Med.y:ROPE)
+adults_nonadj_trans <- es %>% filter(Group == "adults", Dep == "nonadjacent", Parameter == "transfer") %>% dplyr::select(Med.y:ROPE)
+adults_baseline_trans <- es %>% filter(Group == "adults", Dep == "none", Parameter == "transfer") %>% dplyr::select(Med.y:ROPE)
+
+children_adj_trans <- es %>% filter(Group == "children", Dep == "adjacent", Parameter == "transfer") %>% dplyr::select(Med.y:ROPE)
+children_nonadj_trans <- es %>% filter(Group == "children", Dep == "nonadjacent", Parameter == "transfer") %>% dplyr::select(Med.y:ROPE)
+children_baseline_trans <- es %>% filter(Group == "children", Dep == "none", Parameter == "transfer") %>% dplyr::select(Med.y:ROPE)
+
+adults_adj_learn <- es %>% filter(Group == "adults", Dep == "adjacent", Parameter == "learning") %>% dplyr::select(Med.y:ROPE)
+adults_nonadj_learn <- es %>% filter(Group == "adults", Dep == "nonadjacent", Parameter == "learning") %>% dplyr::select(Med.y:ROPE)
+adults_baseline_learn <- es %>% filter(Group == "adults", Dep == "none", Parameter == "learning") %>% dplyr::select(Med.y:ROPE)
+
+children_adj_learn <- es %>% filter(Group == "children", Dep == "adjacent", Parameter == "learning") %>% dplyr::select(Med.y:ROPE)
+children_nonadj_learn <- es %>% filter(Group == "children", Dep == "nonadjacent", Parameter == "learning") %>% dplyr::select(Med.y:ROPE)
+children_baseline_learn <- es %>% filter(Group == "children", Dep == "none", Parameter == "learning") %>% dplyr::select(Med.y:ROPE)
+
+
+# Overall dependency slowdown
+dep <- read_csv("../../Group comparison/posterior/by_group_effectsize_dependency_v2.csv") %>% dplyr::select(-ends_with(".x"),-P) %>%
+  mutate(ROPE == paste0(round(ROPE,0), "%")) %>%
+  mutate_if(is.numeric, round, 2)
+
+adults_dep_learn <- dep %>% filter(Group == "adults", Dependency == "dependency", Effect == "learning") %>% dplyr::select(Med.y:ROPE)
+children_dep_learn <- dep %>% filter(Group == "children", Dependency == "dependency", Effect == "learning") %>% dplyr::select(Med.y:ROPE)
+adults_dep_trans <- dep %>% filter(Group == "adults", Dependency == "dependency", Effect == "transfer") %>% dplyr::select(Med.y:ROPE)
+children_dep_trans <- dep %>% filter(Group == "children", Dependency == "dependency", Effect == "transfer") %>% dplyr::select(Med.y:ROPE)
+
+```
+
+
+Figure \ref{fig:plotgroupcomp} illustrates the modelled serial reaction-time data illustrating the speedup from Block 1 to Block 2 and the slowdown from Block 6 to Block 7 for the adult and the children group. The slowdown from Block 6 to 7 was tested within Age Group and Dependency to gain further insight into the source of the three-way interaction. Reported are the effect sizes for each comparison. 
+
+
+```{r plotgroupcomp, fig.pos='ht', fig.align='center', fig.cap='Modelled serial reaction-time data (group comparison). Reaction-time data are shown by age group for the transition from the first block to Block 2 (learning) and Block 6 to the final block (transfer). Shown are the modelled reaction-time data with 95\\% HPDI (in msecs) for both adjacency conditions (adjacent, nonadjacent) and the baseline condition.',  fig.width=8.5, fig.height=5}
+
+read_csv("../../Group comparison/posterior/by_group_v2.csv") %>% 
+  mutate(Dependency = ifelse(Dependency == "none", "baseline", Dependency),
+         Dependency = factor(Dependency, levels = c("adjacent", "nonadjacent", "baseline"), ordered = T),
+         Learning = ifelse(Block  %in% paste0("Block: ",c(1, 2) ), TRUE, FALSE ),
+         Learning = ifelse(Learning == TRUE, "Learning", "Transfer"),
+         Group = paste0("Group: ", Group)) %>%
+  group_by(Group, Block, Dependency, Learning) %>%
+  dplyr::summarise(M = median(RT),
+                   Lower = HPDI(RT, prob = .95)[1],
+                   Upper = HPDI(RT, prob = .95)[2]) %>%
+  ungroup() %>% ggplot(aes(x = Block, y = M, 
+             color = Dependency, 
+             linetype = Dependency, 
+             shape = Dependency,
+             ymin = Lower, ymax = Upper,
+             group = interaction(Dependency, Learning))) +
+  theme_minimal(base_size = 14) +
+  facet_wrap(~Group + Learning, scales = "free_x", nrow = 1) +
+  geom_errorbar(width = .0, position = position_dodge(.5)) +
+  geom_point(size = 4, position = position_dodge(.5)) +
+  geom_line(position = position_dodge(.5)) +
+  scale_shape_manual("Dependency:", values = c(21,23,24)) +
+  scale_colour_manual("Dependency:", values =  c("black", "black", "grey50")) +
+  scale_linetype_manual("Dependency:",values = c("solid", "dashed", "dotted")) +
+  labs(y = bquote(atop("Most probable parameter value"~hat(mu),"with 95% HPDIs (in msecs)")), x = "") +
+  scale_y_continuous(breaks = seq(800, 2100, 100)) +
+  theme(legend.justification =  "right",
+        legend.position = "top",
+        strip.text = element_text(hjust = 0, size = 12),
+        legend.key.width = unit(1.25, "cm")) 
+
+#ggsave("Group comparison/modelled_groups_plot.png", width = 7, height = 4)
+```
+
+We observed an interaction of Dependency (levels: dependency, baseline), Transfer Block (levels: 6 and 7), and Age Group. For the adult group, we observed a small effect for a slowdown from Block 6 to 7 in the dependency condition ($\hat{\delta}$ = `r adults_dep_trans$Med.y`, 95% HPDI[`r adults_dep_trans$Lo.y`, `r adults_dep_trans$Up.y`], ROPE = `r adults_dep_trans$ROPE`) but negligible evidence for a slowdown in baseline trials ($\hat{\delta}$ = `r adults_baseline_trans$Med.y`, 95% HPDI[`r adults_baseline_trans$Lo.y`, `r adults_baseline_trans$Up.y`], ROPE = `r adults_baseline_trans$ROPE`). For the children group, we observed a negligible slowdown effect in the dependency condition ($\hat{\delta}$ = `r children_dep_trans$Med.y`, 95% HPDI[`r children_dep_trans$Lo.y`, `r children_dep_trans$Up.y`], ROPE = `r children_dep_trans$ROPE`) and a small slowdown effect for the baseline condition ($\hat{\delta}$ = `r children_baseline_trans$Med.y`, 95% HPDI[`r children_baseline_trans$Lo.y`, `r children_baseline_trans$Up.y`], ROPE = `r children_baseline_trans$ROPE`).
+
+```{r}
+#Second, we observed an interaction of Adjacency (levels: adjacent, nonadjacent), Block, and Age Group. Slowdown effects were found in adults for both dependencies with a negligible to small effect for the adjacent condition ($\hat{\delta}$ = `r adults_adj_trans$Med.y`, 95% HPDI[`r adults_adj_trans$Lo.y`, `r adults_adj_trans$Up.y`], ROPE = `r adults_adj_trans$ROPE`) and a small to medium strong effect for nonadjacent dependencies ($\hat{\delta}$ = `r adults_nonadj_trans$Med.y`, 95% HPDI[`r adults_nonadj_trans$Lo.y`, `r adults_nonadj_trans$Up.y`], ROPE = `r adults_nonadj_trans$ROPE`). For the children group we observed a negligible to small slowdown effect for both adjacent dependencies ($\hat{\delta}$ = `r children_adj_trans$Med.y`, 95% HPDI[`r children_adj_trans$Lo.y`, `r children_adj_trans$Up.y`], ROPE = `r children_adj_trans$ROPE`) and for nonadjacent dependencies ($\hat{\delta}$ = `r children_nonadj_trans$Med.y`, 95% HPDI[`r children_nonadj_trans$Lo.y`, `r children_nonadj_trans$Up.y`], ROPE = `r children_nonadj_trans$ROPE`).  
+
+```
+
+
+
+
+
+
+\newpage
+
+
+# References
+```{r create_r-references, echo=FALSE, include=FALSE}
+r_refs(file = "references.bib")
+```
+
+\begingroup
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
+  
+<div id = "ref"></div>
+\endgroup
+  

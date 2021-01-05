@@ -197,7 +197,7 @@ children_dep_trans <- dep %>% filter(Group == "children", Dependency == "depende
 Figure \ref{fig:plotgroupcomp} illustrates the modelled serial reaction-time data illustrating the speedup from Block 1 to Block 6 and the slowdown from Block 6 to Block 7 for the adult and the children group. The slowdown from Block 6 to 7 was tested within Age Group and Dependency to gain further insight into the source of the three-way interaction. Reported are the effect sizes for each comparison. 
 
 
-```{r plotgroupcomp, fig.pos='ht', fig.align='center', fig.cap='Modelled serial reaction-time data (group comparison). Reaction-time data are shown by age group for the first block compared to Block 6 (learning) and Block 6 to the final block (transfer). Shown are the modelled reaction-time data with 95\\% HPDI (in msecs) for both adjacency conditions (adjacent, nonadjacent) and the baseline condition.',  fig.width=8.5, fig.height=5}
+```{r plotgroupcomp, fig.pos='ht', fig.align='center', fig.cap='Modelled serial reaction-time data (group comparison). Reaction-time data are shown by age group for the first block compared to Block 6 (learning) and Block 6 compared to the final block (transfer). Shown are the modelled reaction-time data with 95\\% HPDI (in msecs) for both adjacency conditions (adjacent, nonadjacent) and the baseline condition.',  fig.width=8.5, fig.height=5}
 
 read_csv("../../Group comparison/posterior/by_group_v3.csv") %>% 
   mutate(Dependency = ifelse(Dependency == "none", "baseline", Dependency),

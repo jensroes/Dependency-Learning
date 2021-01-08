@@ -92,7 +92,7 @@ fit <- brm(m,
            seed = 265,
            control = list(adapt_delta = .99,
                           max_treedepth = 16))
-
+      
 
 # Save model
 saveRDS(fit,

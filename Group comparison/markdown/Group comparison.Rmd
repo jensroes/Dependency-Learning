@@ -81,10 +81,10 @@ In this final analysis we evaluate differences between the adults (Experiment 1)
 
 This analysis was largely similar to the reaction-time models reported earlier: reaction times were modelled in Bayesian linear mixed-effects models. Reaction times for elements that were not part of an adjacent or nonadjacent dependency were included in the model as baseline. Model predictors were Age Group (levels: adults, children), Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent), Block (levels: 6, 7), and all by-Dependency and by-Adjacency interactions with Group and Block. All predictors were sum-coded following @schad2020capitalize. Reaction time data were ﬁtted with a shifted-lognormal distribution, random intercepts for each stimulus image, and participants with by-participant slope adjustments for all main effects and interactions. 
 
-In addition to the parameter estimates as in the previous results sections, we used the posterior to calculate the standardised effect sizes $\delta$, defined as $\delta = \frac{\mu}{\sigma}$ , where $\mu$ is the parameter value of the effect of interest and $\sigma$ is the standard deviation. The effect size was calculated to allow comparisons across age group [@wagenmakers2010bayesian]. Because the standard deviation is necessary to calculate the effect size, we specified the model with two different variance components, one for the children group and one for the adults group as the population standard deviation is likely to be different for each group [@baguley2009standardized]. 
+
+In addition to the parameter estimates as in the previous results sections, we used the posterior to calculate the standardised effect sizes $\delta$, defined as $\delta = \frac{\mu}{\sigma}$ , where $\mu$ is the parameter value of the effect of interest and $\sigma$ is the variance. The effect size was calculated to allow comparisons across age group [@wagenmakers2010bayesian]. Because the variance is necessary to calculate the effect size, we specified the model with two different variance components, one for the children group and one for the adults group as the population standard deviation is likely to be different for each group [@baguley2009standardized]. 
 
 For the effect sizes, we determined the region of practical equivalence (henceforth, ROPE) to assess the uncertainty of the effect size [@makowski2019bayestestr]. The ROPE is the range of values that are practically equivalent to a null effect [see e.g. @kruschke2010believe; @kruschke2011bayesian]. For the effect size we set the ROPE to be -0.1 and 0.1 [@kruschke2018rejecting] which is the range of negligible effect sizes [@cohn1988statistical]. The value returned is the proportion of posterior samples (of the effect size) that falls inside the ROPE. In other words, the ROPE value indicates the extent to which the posterior cannot rule out an negligible effect. A meaningful effect size should have a small proportion of posterior samples within the ROPE. 
-
 
 
 ```{r}
@@ -134,9 +134,13 @@ summary <- samps_rt_summary %>%
   mutate(Parameter = gsub("\\*", "$\\\\times$", Parameter),
          Parameter = gsub("Sigma_adults", "$\\\\sigma_{adults}$", Parameter),
          Parameter = gsub("Sigma_children", "$\\\\sigma_{children}$", Parameter))
-```
 
-Table \ref{tab:tablemodel} summaries the modelling outcome for the serial reaction-time data. We found compelling evidence for longer reaction times for children compared to adults. Reaction times for Block 7 were longer than for Block 6. Further evidence was found for two-way interactions of Age Group and Block, and Age Group and Dependency. Importantly, we found evidence for three-way interactions of both Dependency and Adjacency by Block and Age Group. The variance of the children group $\sigma_{children}$ was larger than the variance of the adults group $\sigma_{adults}$.
+sigma_children <- summary %>% filter(grepl("sigma", Parameter), grepl("children", Parameter))
+sigma_adults <- summary %>% filter(grepl("sigma", Parameter), grepl("adults", Parameter))
+
+summary %<>% filter(!grepl("sigma", Parameter))
+
+```
 
 ```{r tablemodel,  results='asis'}
 names(summary) <- c("Predictor", "$\\hat{\\mu}$", "95\\% HPDI", "$P(\\hat{\\mu}<0)$")
@@ -144,14 +148,18 @@ names(summary) <- c("Predictor", "$\\hat{\\mu}$", "95\\% HPDI", "$P(\\hat{\\mu}<
 papaja::apa_table(summary, align =  "lrrr", 
                   escape = FALSE, placement = "ht", row.names = T, 
                   stub_indents = list(`Main effects` = 1:4, 
-                                      `Interactions`= 5:11,
-                                      `Variance components` = 12:13),
+                                      `Two-way interactions`= 5:9,
+                                      `Three-way interactions`= 10:11),
                   digits = 0,
-                  font = "small",
+                  font = "footnotesize",
                   caption = "Age-group comparison for serial reaction-time data. Estimated parameter values (in msecs) for main effects and interactions of Age Group (levels: adults, children), Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent).", 
                   note = "$\\hat{\\mu}$ = most probable parameter value; 95\\% HPDI = interval containing 95\\% of the probability mass; $P(\\hat{\\mu}<0)$ = probability of the true parameter value being smaller than 0.") 
 
 ```
+
+Table \ref{tab:tablemodel} summaries the modelling outcome for the serial reaction-time data. We found compelling evidence for longer reaction times for children compared to adults. Reaction times for Block 7 were longer than for Block 6. Further evidence was found for a two-way interaction of Age Group and Dependency. Importantly, we found evidence for a three-way interaction of Dependency, Block and Age Group. The variance estimate for the children group ($\hat{\sigma}$ = `r sigma_children$Med`, 95% HPDI`r sigma_children$PI`) was larger than the variance estimate for the adults group ($\hat{\sigma}$ = `r sigma_adults$Med`, 95% HPDI`r sigma_adults$PI`).
+
+
 
 
 
@@ -162,13 +170,13 @@ es <- read_csv("../../Group comparison/posterior/by_group_effectsize.csv") %>%
   mutate(ROPE = paste0(round(ROPE,0), "%")) %>%
   mutate_if(is.numeric, round, 2)
 
-adults_adj <- es %>% filter(Group == "adults", Dep == "adjacent") %>% dplyr::select(Med.y:ROPE)
-adults_nonadj <- es %>% filter(Group == "adults", Dep == "nonadjacent") %>% dplyr::select(Med.y:ROPE)
-adults_baseline <- es %>% filter(Group == "adults", Dep == "none") %>% dplyr::select(Med.y:ROPE)
+adults_adj <- es %>% filter(Group == "adults", Dependency == "adjacent") %>% dplyr::select(Med.y:ROPE)
+adults_nonadj <- es %>% filter(Group == "adults", Dependency == "nonadjacent") %>% dplyr::select(Med.y:ROPE)
+adults_baseline <- es %>% filter(Group == "adults", Dependency == "none") %>% dplyr::select(Med.y:ROPE)
 
-children_adj <- es %>% filter(Group == "children", Dep == "adjacent") %>% dplyr::select(Med.y:ROPE)
-children_nonadj <- es %>% filter(Group == "children", Dep == "nonadjacent") %>% dplyr::select(Med.y:ROPE)
-children_baseline <- es %>% filter(Group == "children", Dep == "none") %>% dplyr::select(Med.y:ROPE)
+children_adj <- es %>% filter(Group == "children", Dependency == "adjacent") %>% dplyr::select(Med.y:ROPE)
+children_nonadj <- es %>% filter(Group == "children", Dependency == "nonadjacent") %>% dplyr::select(Med.y:ROPE)
+children_baseline <- es %>% filter(Group == "children", Dependency == "none") %>% dplyr::select(Med.y:ROPE)
 
 
 # Overall dependency slowdown
@@ -217,9 +225,7 @@ read_csv("../../Group comparison/posterior/by_group.csv") %>%
 #ggsave("Group comparison/modelled_groups_plot.png", width = 7, height = 4)
 ```
 
-First, we observed an interaction of Dependency (levels: dependency, baseline), Block, and Age Group. For the adult group, we observed a small effect for a slowdown from Block 6 to 7 in the dependency condition ($\hat{\delta}$ = `r adults_dep$Med.y`, 95% HPDI[`r adults_dep$Lo.y`, `r adults_dep$Up.y`], ROPE = `r adults_dep$ROPE`) but negligible evidence for a slowdown in baseline trials ($\hat{\delta}$ = `r adults_baseline$Med.y`, 95% HPDI[`r adults_baseline$Lo.y`, `r adults_baseline$Up.y`], ROPE = `r adults_baseline$ROPE`). For the children group, we observed negligible to small slowdown effects in both the dependency condition ($\hat{\delta}$ = `r children_dep$Med.y`, 95% HPDI[`r children_dep$Lo.y`, `r children_dep$Up.y`], ROPE = `r children_dep$ROPE`) and for the baseline condition ($\hat{\delta}$ = `r children_baseline$Med.y`, 95% HPDI[`r children_baseline$Lo.y`, `r children_baseline$Up.y`], ROPE = `r children_baseline$ROPE`).
-
-Second, we observed an interaction of Adjacency (levels: adjacent, nonadjacent), Block, and Age Group. Slowdown effects were found in adults for both dependencies with a negligible to small effect for the adjacent condition ($\hat{\delta}$ = `r adults_adj$Med.y`, 95% HPDI[`r adults_adj$Lo.y`, `r adults_adj$Up.y`], ROPE = `r adults_adj$ROPE`) and a small to medium strong effect for nonadjacent dependencies ($\hat{\delta}$ = `r adults_nonadj$Med.y`, 95% HPDI[`r adults_nonadj$Lo.y`, `r adults_nonadj$Up.y`], ROPE = `r adults_nonadj$ROPE`). For the children group we observed a negligible to small slowdown effect for both adjacent dependencies ($\hat{\delta}$ = `r children_adj$Med.y`, 95% HPDI[`r children_adj$Lo.y`, `r children_adj$Up.y`], ROPE = `r children_adj$ROPE`) and for nonadjacent dependencies ($\hat{\delta}$ = `r children_nonadj$Med.y`, 95% HPDI[`r children_nonadj$Lo.y`, `r children_nonadj$Up.y`], ROPE = `r children_nonadj$ROPE`).  
+We observed an interaction of Dependency (levels: dependency, baseline), Block, and Age Group. For the adult group, we observed a small effect for a slowdown from Block 6 to 7 in the dependency condition ($\hat{\delta}$ = `r adults_dep$Med.y`, 95% HPDI[`r adults_dep$Lo.y`, `r adults_dep$Up.y`], ROPE = `r adults_dep$ROPE`) but negligible evidence for a slowdown in baseline trials ($\hat{\delta}$ = `r adults_baseline$Med.y`, 95% HPDI[`r adults_baseline$Lo.y`, `r adults_baseline$Up.y`], ROPE = `r adults_baseline$ROPE`). For the children group, we observed negligible to small slowdown effects in both the dependency condition ($\hat{\delta}$ = `r children_dep$Med.y`, 95% HPDI[`r children_dep$Lo.y`, `r children_dep$Up.y`], ROPE = `r children_dep$ROPE`) and for the baseline condition ($\hat{\delta}$ = `r children_baseline$Med.y`, 95% HPDI[`r children_baseline$Lo.y`, `r children_baseline$Up.y`], ROPE = `r children_baseline$ROPE`).
 
 
 

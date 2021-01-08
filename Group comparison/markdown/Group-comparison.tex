@@ -155,11 +155,9 @@ In this final analysis we evaluate differences between the adults (Experiment 1)
 
 This analysis was largely similar to the reaction-time models reported earlier: reaction times were modelled in Bayesian linear mixed-effects models. Reaction times for elements that were not part of an adjacent or nonadjacent dependency were included in the model as baseline. Model predictors were Age Group (levels: adults, children), Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent), Block (levels: 6, 7), and all by-Dependency and by-Adjacency interactions with Group and Block. All predictors were sum-coded following Schad et al. (2020). Reaction time data were ﬁtted with a shifted-lognormal distribution, random intercepts for each stimulus image, and participants with by-participant slope adjustments for all main effects and interactions.
 
-In addition to the parameter estimates as in the previous results sections, we used the posterior to calculate the standardised effect sizes \(\delta\), defined as \(\delta = \frac{\mu}{\sigma}\) , where \(\mu\) is the parameter value of the effect of interest and \(\sigma\) is the standard deviation. The effect size was calculated to allow comparisons across age group (Wagenmakers et al., 2010). Because the standard deviation is necessary to calculate the effect size, we specified the model with two different variance components, one for the children group and one for the adults group as the population standard deviation is likely to be different for each group (Baguley, 2009).
+In addition to the parameter estimates as in the previous results sections, we used the posterior to calculate the standardised effect sizes \(\delta\), defined as \(\delta = \frac{\mu}{\sigma}\) , where \(\mu\) is the parameter value of the effect of interest and \(\sigma\) is the variance. The effect size was calculated to allow comparisons across age group (Wagenmakers et al., 2010). Because the variance is necessary to calculate the effect size, we specified the model with two different variance components, one for the children group and one for the adults group as the population standard deviation is likely to be different for each group (Baguley, 2009).
 
 For the effect sizes, we determined the region of practical equivalence (henceforth, ROPE) to assess the uncertainty of the effect size (Makowski et al., 2019). The ROPE is the range of values that are practically equivalent to a null effect (see e.g.~Kruschke, 2010, 2011). For the effect size we set the ROPE to be -0.1 and 0.1 (Kruschke, 2018) which is the range of negligible effect sizes (Cohn, 1988). The value returned is the proportion of posterior samples (of the effect size) that falls inside the ROPE. In other words, the ROPE value indicates the extent to which the posterior cannot rule out an negligible effect. A meaningful effect size should have a small proportion of posterior samples within the ROPE.
-
-Table \ref{tab:tablemodel} summaries the modelling outcome for the serial reaction-time data. We found compelling evidence for longer reaction times for children compared to adults. Reaction times for Block 7 were longer than for Block 6. Further evidence was found for two-way interactions of Age Group and Block, and Age Group and Dependency. Importantly, we found evidence for three-way interactions of both Dependency and Adjacency by Block and Age Group. The variance of the children group \(\sigma_{children}\) was larger than the variance of the adults group \(\sigma_{adults}\).
 
 \begin{table}[ht]
 
@@ -168,28 +166,26 @@ Table \ref{tab:tablemodel} summaries the modelling outcome for the serial reacti
 
 \caption{\label{tab:tablemodel}Age-group comparison for serial reaction-time data. Estimated parameter values (in msecs) for main effects and interactions of Age Group (levels: adults, children), Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent).}
 
-\small{
+\footnotesize{
 
 \begin{tabular}{lrrr}
 \toprule
 Predictor & \multicolumn{1}{c}{$\hat{\mu}$} & \multicolumn{1}{c}{95\% HPDI} & \multicolumn{1}{c}{$P(\hat{\mu}<0)$}\\
 \midrule
 Main effects &  &  & \\
-\ \ \ Age Group & -391 & [-455, -330] & >.999\\
-\ \ \ Dependency & 8 & [-29, 48] & .316\\
-\ \ \ Adjacency & -9 & [-37, 21] & .714\\
-\ \ \ Block & -68 & [-104, -33] & >.999\\
-Interactions &  &  & \\
-\ \ \ Dependency $\times$ Block & -36 & [-75, 10] & .933\\
-\ \ \ Adjacency $\times$ Block & -11 & [-42, 21] & .765\\
-\ \ \ Age $\times$ Block & -82 & [-112, -50] & >.999\\
-\ \ \ Age $\times$ Dependency & -66 & [-95, -34] & >.999\\
-\ \ \ Age $\times$ Adjacency & -13 & [-41, 12] & .86\\
-\ \ \ Dependency $\times$ Block $\times$ Age & -39 & [-73, -8] & .99\\
-\ \ \ Adjacency $\times$ Block $\times$ Age & 68 & [34, 108] & <.001\\
-Variance components &  &  & \\
-\ \ \ $\sigma_{adults}$ & 0.28 & [0.27, 0.29] & --\\
-\ \ \ $\sigma_{children}$ & 0.37 & [0.36, 0.38] & --\\
+\ \ \ Age Group & -390 & [-458, -330] & >.999\\
+\ \ \ Dependency & 11 & [-30, 47] & .322\\
+\ \ \ Adjacency & -8 & [-37, 21] & .703\\
+\ \ \ Block & -67 & [-104, -34] & >.999\\
+Two-way interactions &  &  & \\
+\ \ \ Dependency $\times$ Block & -33 & [-74, 11] & .934\\
+\ \ \ Adjacency $\times$ Block & -12 & [-42, 19] & .769\\
+\ \ \ Age $\times$ Block & -1 & [-34, 32] & .52\\
+\ \ \ Age $\times$ Dependency & -65 & [-94, -31] & >.999\\
+\ \ \ Age $\times$ Adjacency & -14 & [-43, 11] & .856\\
+Three-way interactions &  &  & \\
+\ \ \ Dependency $\times$ Block $\times$ Age & -39 & [-73, -6] & .99\\
+\ \ \ Adjacency $\times$ Block $\times$ Age & 2 & [-28, 29] & .479\\
 \bottomrule
 \addlinespace
 \end{tabular}
@@ -205,6 +201,8 @@ Variance components &  &  & \\
 
 \end{table}
 
+Table \ref{tab:tablemodel} summaries the modelling outcome for the serial reaction-time data. We found compelling evidence for longer reaction times for children compared to adults. Reaction times for Block 7 were longer than for Block 6. Further evidence was found for a two-way interaction of Age Group and Dependency. Importantly, we found evidence for a three-way interaction of Dependency, Block and Age Group. The variance estimate for the children group (\(\hat{\sigma}\) = 0.37, 95\% HPDI{[}0.36, 0.38{]}) was larger than the variance estimate for the adults group (\(\hat{\sigma}\) = 0.28, 95\% HPDI{[}0.27, 0.29{]}).
+
 Figure \ref{fig:plotgroupcomp} illustrates the modelled serial reaction-time data comparing the slowdown from Block 6 to Block 7 for the adult and the children group. The slowdown from Block 6 to 7 was tested within Age Group and Dependency / Adjacency to gain further insight into the source of the two three-way interactions. Reported are the effect sizes for each comparison.
 
 \begin{figure}[ht]
@@ -216,9 +214,7 @@ Figure \ref{fig:plotgroupcomp} illustrates the modelled serial reaction-time dat
 \caption{Modelled serial reaction-time data (group comparison). Reaction-time data are shown for each age group for the final two blocks (block 7 is the transfer block). Shown are the modelled reaction-time data with 95\% HPDI (in msecs) for both adjacency conditions (adjacent, nonadjacent) and the baseline condition.}\label{fig:plotgroupcomp}
 \end{figure}
 
-First, we observed an interaction of Dependency (levels: dependency, baseline), Block, and Age Group. For the adult group, we observed a small effect for a slowdown from Block 6 to 7 in the dependency condition (\(\hat{\delta}\) = 0.26, 95\% HPDI{[}0.12, 0.43{]}, ROPE = 0\%) but negligible evidence for a slowdown in baseline trials (\(\hat{\delta}\) = 0, 95\% HPDI{[}-0.11, 0.08{]}, ROPE = 100\%). For the children group, we observed negligible to small slowdown effects in both the dependency condition (\(\hat{\delta}\) = 0.11, 95\% HPDI{[}-0.02, 0.27{]}, ROPE = 35\%) and for the baseline condition (\(\hat{\delta}\) = 0.15, 95\% HPDI{[}0.04, 0.25{]}, ROPE = 14\%).
-
-Second, we observed an interaction of Adjacency (levels: adjacent, nonadjacent), Block, and Age Group. Slowdown effects were found in adults for both dependencies with a negligible to small effect for the adjacent condition (\(\hat{\delta}\) = 0.23, 95\% HPDI{[}0.01, 0.46{]}, ROPE = 8\%) and a small to medium strong effect for nonadjacent dependencies (\(\hat{\delta}\) = 0.30, 95\% HPDI{[}0.12, 0.52{]}, ROPE = 0\%). For the children group we observed a negligible to small slowdown effect for both adjacent dependencies (\(\hat{\delta}\) = 0.08, 95\% HPDI{[}-0.11, 0.30{]}, ROPE = 55\%) and for nonadjacent dependencies (\(\hat{\delta}\) = 0.16, 95\% HPDI{[}-0.04, 0.36{]}, ROPE = 25\%).
+We observed an interaction of Dependency (levels: dependency, baseline), Block, and Age Group. For the adult group, we observed a small effect for a slowdown from Block 6 to 7 in the dependency condition (\(\hat{\delta}\) = 0.27, 95\% HPDI{[}0.11, 0.43{]}, ROPE = 0\%) but negligible evidence for a slowdown in baseline trials (\(\hat{\delta}\) = -0.01, 95\% HPDI{[}-0.11, 0.09{]}, ROPE = 100\%). For the children group, we observed negligible to small slowdown effects in both the dependency condition (\(\hat{\delta}\) = 0.14, 95\% HPDI{[}-0.01, 0.28{]}, ROPE = 35\%) and for the baseline condition (\(\hat{\delta}\) = 0.14, 95\% HPDI{[}0.04, 0.25{]}, ROPE = 16\%).
 
 \newpage
 

@@ -233,7 +233,7 @@ Second, we inspected the Age Group by Learning Block (levels: Block 1, Block 6) 
 ```{r}
 # Overall dependency slowdown
 dep <- read_csv("../../Group comparison/posterior/by_group_effectsize_dependency_v3.csv") %>% dplyr::select(-ends_with(".x"),-P) %>%
-  mutate(ROPE == paste0(round(ROPE,0), "%")) %>%
+  mutate(ROPE = paste0(round(ROPE,0), "%")) %>%
   mutate_if(is.numeric, round, 2) %>%
   filter(Effect != "learning")
 

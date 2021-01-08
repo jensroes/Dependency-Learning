@@ -31,6 +31,7 @@ summary(d$COND)
 
 dim(contrasts(d$COND))
 
+# Main effects matrix
 cmat <- fractions(matrix(c(
    # Main effects
    1, 1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  # Group
@@ -40,7 +41,7 @@ cmat <- fractions(matrix(c(
    0, 1,-1, 0, 1,-1, 0, 1,-1, 0, 1,-1, 0, 1,-1, 0, 1,-1  # 2 Block 6 vs 7
 ), nrow = nrow, byrow = F))
 
-
+# Interactions
 groupXdep <- cmat[,1] * cmat[,2] # group * Dep
 groupXadj <- cmat[,1] * cmat[,3] # group * Adj
 groupXblock1 <- cmat[,1] * cmat[,4] # group * block 1
@@ -54,7 +55,7 @@ depXblock2Xgroup <- cmat[,1] * cmat[,2] * cmat[,5]
 adjXblock1Xgroup <- cmat[,1] * cmat[,3] * cmat[,4]
 adjXblock2Xgroup <- cmat[,1] * cmat[,3] * cmat[,5]
 
-
+# Combine MEs and interactions
 cmat <- cbind(cmat, groupXdep, groupXadj, 
               groupXblock1, groupXblock2, 
               depXblock1, depXblock2,

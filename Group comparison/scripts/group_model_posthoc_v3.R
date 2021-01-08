@@ -35,6 +35,7 @@ summary(d$COND)
 
 dim(contrasts(d$COND))
 
+# Main effects matrix
 cmat <- fractions(matrix(c(
   # Main effects
   1, 1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  # Group
@@ -44,7 +45,7 @@ cmat <- fractions(matrix(c(
   0, 1,-1, 0, 1,-1, 0, 1,-1, 0, 1,-1, 0, 1,-1, 0, 1,-1  # 2 Block 6 vs 7
 ), nrow = nrow, byrow = F))
 
-
+# Interactions
 groupXdep <- cmat[,1] * cmat[,2] # group * Dep
 groupXadj <- cmat[,1] * cmat[,3] # group * Adj
 groupXblock1 <- cmat[,1] * cmat[,4] # group * block 1
@@ -58,7 +59,7 @@ depXblock2Xgroup <- cmat[,1] * cmat[,2] * cmat[,5]
 adjXblock1Xgroup <- cmat[,1] * cmat[,3] * cmat[,4]
 adjXblock2Xgroup <- cmat[,1] * cmat[,3] * cmat[,5]
 
-
+# Combine MEs and interactions
 cmat <- cbind(cmat, groupXdep, groupXadj, 
               groupXblock1, groupXblock2, 
               depXblock1, depXblock2,
@@ -87,13 +88,6 @@ rownames(inv.cmat) <- rown
 colnames(inv.cmat) <- coln
 inv.cmat
 
-dim(cmat)
-# Assign contrasts
-dim(contrasts(d$COND))
-contrasts(d$COND) <- inv.cmat
-dim(contrasts(d$COND))
-dim(inv.cmat)
-
 contrasts(d$COND)
 
 # Load model
@@ -113,8 +107,7 @@ samps$prior_b_sigma <- NULL
 
 names(samps)[grepl("b_", names(samps))] <- c("alpha[1]", paste0("beta[",1:17,"]"))
 
-samps %<>% filter(grepl("alpha|beta", Parameter)) %>%
-  gather(Parameter, value) 
+samps %<>% gather(Parameter, value) %>% filter(grepl("alpha|beta", Parameter)) 
 
 table(samps$Parameter)
 
@@ -164,53 +157,43 @@ write_csv(pred_rt, "Group comparison/posterior/by_group_v3.csv")
 
 pred_rt %>% count(Block)
 
+sigmas <- tibble(adults = sigma_adults, children = sigma_children) %>%
+  pivot_longer(everything(), names_to = "Group", values_to = "sigma") %>%
+  group_by(Group) %>%
+  summarise(sigma = mean(sigma))
+
 pred_std <- pred %>% as_tibble() %>%
-  mutate(row = 1:n(),
-         sigma_children = sigma_children,
-         sigma_adults = sigma_adults) %>%
-  gather(key = COND, value = RT, -row,-sigma_children,-sigma_adults) %>%
+  mutate(row = 1:n()) %>%
+  gather(key = COND, value = RT, -row) %>%
   separate(COND, sep = "_", into = c("Group", "Dependency", "Block")) %>%
-  dplyr::select(-row) %>%
+  group_by(Block) %>%
+  mutate(row = 1:n()) %>%
   pivot_wider(names_from = Block, values_from = RT) %>%
   mutate(diff_transfer = `7`-`6`,
-         diff_learning = `6`-`1`,
-         std_transfer = ifelse(Group == "adults", diff_transfer / sigma_adults,
-                     ifelse(Group == "children", diff_transfer / sigma_children, NA)),
-         std_learning = ifelse(Group == "adults", diff_learning / sigma_adults,
-                               ifelse(Group == "children", diff_learning / sigma_children, NA))) %>%
-  dplyr::select(-starts_with("sigma"), -`7`, -`6`, -`1`, -diff_transfer, -diff_learning)
-summary(pred_std)
-
-pred_std
-
-pred_std_ests_learn <- pred_std %>%
-  group_by(Group, Dependency) %>%
-  summarise(Med = dmode(std_learning),
-            Lo = rethinking::HPDI(std_learning, prob = .95)[1],
-            Up = rethinking::HPDI(std_learning, prob = .95)[2]) %>%
-  unite("Parameter", Group:Dependency, sep = "_") %>%
-  mutate(Parameter = paste0("std_learning_", Parameter))
-
-pred_std_ests_transf <- pred_std %>%
-  group_by(Group, Dependency) %>%
-  summarise(Med = dmode(std_transfer),
-            Lo = rethinking::HPDI(std_transfer, prob = .95)[1],
-            Up = rethinking::HPDI(std_transfer, prob = .95)[2]) %>%
-  unite("Parameter", Group:Dependency, sep = "_") %>%
-  mutate(Parameter = paste0("std_transfer_", Parameter))
-
-pred_std_ests <- bind_rows(pred_std_ests_learn, pred_std_ests_transf)
+         diff_learning = `6`-`1`) %>%
+  dplyr::select(-`7`, -`6`, -`1`) %>%
+  pivot_longer(diff_transfer:diff_learning) %>%
+  left_join(sigmas, by = "Group") %>%
+  mutate(value = value / sigma) %>%
+  mutate(name = gsub("diff", "sdt", name)) 
+  
+pred_std_sum <- pred_std %>% group_by(Group, Dependency, name, sigma) %>%
+  summarise(Med = dmode(value),
+            Lo = rethinking::HPDI(value, prob = .95)[1],
+            Up = rethinking::HPDI(value, prob = .95)[2]) %>%
+  unite("Parameter", c(name,Group,Dependency), sep = "_") %>% dplyr::select(-sigma) %>%
+  arrange(Parameter)
 
 pred_std_es <- pred_std %>%
-  group_by(Group, Dependency) %>%
-  mutate(id =  1:n()) %>%
-  pivot_wider(names_from = c("Group", "Dependency"), values_from = c(std_learning, std_transfer)) %>%
-  dplyr::select(-id) %>%
+  group_by(Group, Dependency, name) %>%
+  mutate(row =  1:n()) %>%
+  pivot_wider(-sigma, names_from = c("name", "Group", "Dependency"), values_from = value) %>%
+  dplyr::select(-row) %>%
   rope(range = c(-.1,.1), ci = .89) %>%
-  as_tibble() %>% left_join(pred_std_ests) %>%
+  as_tibble() %>% left_join(pred_std_sum) %>%
   mutate(ROPE = ROPE_Percentage*100) %>%
   dplyr::select(Parameter, Med, Lo, Up, ROPE) %>%
-  mutate(Parameter = gsub("std_", "", Parameter))
+  mutate(Parameter = gsub("sdt_", "", Parameter))
 
 pred_rt_es <- pred_rt %>%
   group_by(Block) %>%
@@ -218,7 +201,7 @@ pred_rt_es <- pred_rt %>%
   pivot_wider(names_from = Block, values_from = RT) %>%
   mutate(diff_transfer = `Block: 7`- `Block: 6`,
          diff_learning = `Block: 6` - `Block: 1`) %>%
-  select(-`Block: 1`:-`Block: 7`) %>%
+  dplyr::select(-`Block: 1`:-`Block: 7`) %>%
   pivot_longer(cols = starts_with("diff_")) %>%
   group_by(Group, Dependency, name) %>%
   summarise(Med = dmode(value),
@@ -242,50 +225,36 @@ pred_std <- pred %>% as_tibble() %>%
          children_dependency_6 = (children_adjacent_6 + children_nonadjacent_6)/2,
          children_dependency_7 = (children_adjacent_7 + children_nonadjacent_7)/2) %>%
   dplyr::select(-contains("adjacent"), -contains("nonadjacent")) %>%
-  mutate(row = 1:n(),
-         sigma_children = sigma_children,
-         sigma_adults = sigma_adults) %>%
-  gather(key = COND, value = RT, -row,-sigma_children,-sigma_adults) %>%
+  mutate(row = 1:n()) %>%
+  gather(key = COND, value = RT, -row) %>%
   separate(COND, sep = "_", into = c("Group", "Dependency", "Block")) %>%
   dplyr::select(-row) %>%
+  group_by(Block) %>%
+  mutate(row = 1:n()) %>%
   pivot_wider(names_from = Block, values_from = RT) %>%
-  group_by(Group, Dependency) %>%
-  mutate(transfer = `7`-`6`,
-         learning = `6`-`1`,
-         std_transfer = ifelse(Group == "adults", transfer / sigma_adults,
-                            ifelse(Group == "children", transfer / sigma_children, NA)),
-         std_learning = ifelse(Group == "adults", learning / sigma_adults,
-                               ifelse(Group == "children", learning / sigma_children, NA))) %>%
-  dplyr::select(-starts_with("sigma"), -`7`, -`6`, -`1`, -transfer, -learning)
+  mutate(diff_transfer = `7`-`6`,
+         diff_learning = `6`-`1`) %>%
+  dplyr::select(-`7`, -`6`, -`1`) %>%
+  pivot_longer(diff_transfer:diff_learning) %>%
+  left_join(sigmas, by = "Group") %>%
+  mutate(value = value / sigma) %>%
+  mutate(name = gsub("diff_", "", name)) 
 
+pred_std_sum <- pred_std %>% group_by(Group, Dependency, name, sigma) %>%
+  summarise(Med = dmode(value),
+            Lo = rethinking::HPDI(value, prob = .95)[1],
+            Up = rethinking::HPDI(value, prob = .95)[2]) %>%
+  unite("Parameter", c(name,Group,Dependency), sep = "_") %>% dplyr::select(-sigma) %>%
+  arrange(Parameter) 
 
-pred_std_ests_trans <- pred_std %>%
-  group_by(Group, Dependency) %>%
-  summarise(Med = dmode(std_transfer),
-            Lo = rethinking::HPDI(std_transfer, prob = .95)[1],
-            Up = rethinking::HPDI(std_transfer, prob = .95)[2]) %>%
-  unite("Parameter", Group:Dependency, sep = "_") %>%
-  mutate(effect = "transfer")
-
-pred_std_ests_learn <- pred_std %>%
-  group_by(Group, Dependency) %>%
-  summarise(Med = dmode(std_learning),
-            Lo = rethinking::HPDI(std_learning, prob = .95)[1],
-            Up = rethinking::HPDI(std_learning, prob = .95)[2]) %>%
-  unite("Parameter", Group:Dependency, sep = "_") %>%
-  mutate(effect = "learning")
-
-pred_std_ests <- bind_rows(pred_std_ests_trans, pred_std_ests_learn) %>%
-  mutate(Parameter = paste(effect, Parameter, sep = "_"))
 
 pred_std_es <- pred_std %>%
-  group_by(Group, Dependency) %>%
-  mutate(id =  1:n()) %>%
-  pivot_wider(names_from = c("Group", "Dependency"), values_from = c(std_transfer, std_learning)) %>%
-  dplyr::select(-id) %>% 
+  group_by(Group, Dependency, name) %>%
+  mutate(row =  1:n()) %>%
+  pivot_wider(-sigma, names_from = c("name", "Group", "Dependency"), values_from = value) %>%
+  dplyr::select(-row) %>% 
   rope(range = c(-.1,.1), ci = .89) %>%
-  as_tibble() %>% mutate(Parameter = gsub("std_", "", Parameter)) %>%
-  left_join(pred_std_ests) %>%
+  as_tibble() %>% left_join(pred_std_sum) %>%
   mutate(ROPE = ROPE_Percentage*100) %>%
   dplyr::select(Parameter, Med, Lo, Up, ROPE)
 
@@ -304,20 +273,133 @@ pred_rt_es <- pred %>% as_tibble() %>%
   mutate(id = 1:n()) %>%
   pivot_wider(names_from = Block, values_from = RT) %>%
   mutate(transfer = `7`- `6`,
-         learning = `6` - `1`,
-         std_transfer = ifelse(Group == "adults", transfer / sigma_adults,
-                               ifelse(Group == "children", transfer / sigma_children, NA)),
-         std_learning = ifelse(Group == "adults", learning / sigma_adults,
-                               ifelse(Group == "children", learning / sigma_children, NA))) %>%
-  pivot_longer(std_transfer:std_learning) %>%
+         learning = `6` - `1`) %>%
+  pivot_longer(transfer:learning) %>%
   group_by(Group, Dependency, name) %>%
   summarise(Med = dmode(value),
             Lo = rethinking::HPDI(value, prob = .95)[1],
             Up = rethinking::HPDI(value, prob = .95)[2],
             P = mean(value < 0)) %>%
-  mutate(name = gsub("std_", "", name)) %>%
   unite("Parameter", c(name, Group, Dependency), sep = "_") %>%
   left_join(pred_std_es, "Parameter") %>%
   separate(Parameter, into = c("Effect", "Group", "Dependency"), sep = "_")
 
 write_csv(pred_rt_es, "Group comparison/posterior/by_group_effectsize_dependency_v3.csv")
+
+
+# Age X dependency
+pred_std <- pred %>% as_tibble() %>%
+  transmute(adults_dependency = (adults_adjacent_1 + adults_nonadjacent_1 + adults_adjacent_6 + adults_nonadjacent_6 + adults_adjacent_7 + adults_nonadjacent_7)/6,
+            adults_none = (adults_none_1 + adults_none_6 + adults_adjacent_7)/3,
+            children_dependency = (children_adjacent_1 + children_nonadjacent_1 + children_adjacent_6 + children_nonadjacent_6 + children_adjacent_7 + children_nonadjacent_7)/6,
+            children_none = (children_none_1 + children_none_6 + children_adjacent_7)/3) %>%
+  pivot_longer(everything()) %>%
+  separate(name, sep = "_", into = c("Group", "Dependency")) %>%
+  group_by(Dependency) %>%
+  mutate(id = 1:n()) %>%
+  pivot_wider(names_from = Dependency, values_from = value) %>%
+  mutate(dependency = `dependency`-`none`) %>% dplyr::select(Group, dependency) %>%
+  left_join(sigmas, by = "Group") %>% mutate(value = dependency / sigma) 
+
+pred_std_sum <- pred_std %>% group_by(Group, sigma) %>%
+  summarise(Med = dmode(value),
+            Lo = rethinking::HPDI(value, prob = .95)[1],
+            Up = rethinking::HPDI(value, prob = .95)[2]) %>% dplyr::select(-sigma) 
+
+pred_std_es <- pred_std %>%
+  group_by(Group) %>%
+  mutate(row =  1:n()) %>%
+  pivot_wider(-sigma:-dependency, names_from = c("Group"), values_from = value) %>%
+  dplyr::select(-row) %>% 
+  rope(range = c(-.1,.1), ci = .89) %>%
+  as_tibble() %>% rename(Group = Parameter) %>%
+  left_join(pred_std_sum) %>%
+  mutate(ROPE = ROPE_Percentage*100) %>%
+  dplyr::select(Group, Med, Lo, Up, ROPE)
+
+pred_rt_es <- pred %>% as_tibble() %>%
+  transmute(adults_dependency = (adults_adjacent_1 + adults_nonadjacent_1 + adults_adjacent_6 + adults_nonadjacent_6 + adults_adjacent_7 + adults_nonadjacent_7)/6,
+            adults_none = (adults_none_1 + adults_none_6 + adults_adjacent_7)/3,
+            children_dependency = (children_adjacent_1 + children_nonadjacent_1 + children_adjacent_6 + children_nonadjacent_6 + children_adjacent_7 + children_nonadjacent_7)/6,
+            children_none = (children_none_1 + children_none_6 + children_adjacent_7)/3) %>%
+  pivot_longer(everything()) %>%
+  separate(name, sep = "_", into = c("Group", "Dependency")) %>%
+  mutate(RT = exp(value)) %>%
+  group_by(Dependency) %>%
+  mutate(id = 1:n()) %>%
+  pivot_wider(-value, names_from = Dependency, values_from = RT) %>%
+  mutate(dependency = `dependency`-`none`) %>% dplyr::select(Group, dependency) %>%
+  rename(value = dependency) %>%
+  group_by(Group) %>%
+  summarise(Med = dmode(value),
+            Lo = rethinking::HPDI(value, prob = .95)[1],
+            Up = rethinking::HPDI(value, prob = .95)[2],
+            P = mean(value < 0)) %>%
+  left_join(pred_std_es, "Group") 
+
+write_csv(pred_rt_es, "Group comparison/posterior/by_group_effectsize_dependency_agegroup_v3.csv")
+
+
+
+# Age X learning
+pred_std <- pred %>% as_tibble() %>%
+  transmute(adults_block1 = (adults_adjacent_1 + adults_nonadjacent_1 + adults_none_1)/3,
+            adults_block6 = (adults_adjacent_6 + adults_nonadjacent_6 + adults_none_6)/3,
+            adults_block7 = (adults_adjacent_7 + adults_nonadjacent_7 + adults_none_7)/3,
+            children_block1 = (children_adjacent_1 + children_nonadjacent_1 + children_none_1)/3,            
+            children_block6 = (children_adjacent_6 + children_nonadjacent_6 + children_none_6)/3,
+            children_block7 = (children_adjacent_7 + children_nonadjacent_7 + children_none_7)/3) %>%
+  pivot_longer(everything()) %>%
+  separate(name, sep = "_", into = c("Group", "Block")) %>%
+  group_by(Block) %>%
+  mutate(id = 1:n()) %>%
+  pivot_wider(names_from = Block, values_from = value) %>%
+  mutate(learning = block6 - block1,
+         transfer = block7 - block6) %>% dplyr::select(Group, learning, transfer) %>%
+  left_join(sigmas, by = "Group") %>% mutate(learning = learning / sigma,
+                                             transfer = transfer / sigma) %>% dplyr::select(-sigma)
+
+pred_std_sum <- pred_std %>% pivot_longer(learning:transfer) %>%
+  group_by(Group, name) %>%
+  summarise(Med = dmode(value),
+            Lo = rethinking::HPDI(value, prob = .95)[1],
+            Up = rethinking::HPDI(value, prob = .95)[2])
+
+pred_std_es <- pred_std %>% pivot_longer(learning:transfer) %>%
+  group_by(Group, name) %>%
+  mutate(row =  1:n()) %>%
+  pivot_wider(names_from = c("Group", "name"), values_from = value) %>%
+  dplyr::select(-row) %>% 
+  rope(range = c(-.1,.1), ci = .89) %>%
+  as_tibble() %>% separate(Parameter, into = c("Group", "name")) %>%
+  left_join(pred_std_sum) %>%
+  mutate(ROPE = ROPE_Percentage*100) %>%
+  rename(Effect = name) %>%
+  dplyr::select(Group, Effect,  Med, Lo, Up, ROPE)
+
+pred_rt_es <- pred %>% as_tibble() %>%
+  transmute(adults_block1 = (adults_adjacent_1 + adults_nonadjacent_1 + adults_none_1)/3,
+            adults_block6 = (adults_adjacent_6 + adults_nonadjacent_6 + adults_none_6)/3,
+            adults_block7 = (adults_adjacent_7 + adults_nonadjacent_7 + adults_none_7)/3,
+            children_block1 = (children_adjacent_1 + children_nonadjacent_1 + children_none_1)/3,            
+            children_block6 = (children_adjacent_6 + children_nonadjacent_6 + children_none_6)/3,
+            children_block7 = (children_adjacent_7 + children_nonadjacent_7 + children_none_7)/3) %>%
+  pivot_longer(everything()) %>%
+  separate(name, sep = "_", into = c("Group", "Block")) %>%
+  mutate(RT = exp(value)) %>% dplyr::select(-value) %>%
+  group_by(Block) %>%
+  mutate(id = 1:n()) %>%
+  pivot_wider(names_from = Block, values_from = RT) %>%
+  mutate(learning = block6 - block1,
+         transfer = block7 - block6) %>% dplyr::select(Group, learning, transfer) %>%
+  pivot_longer(learning:transfer) %>%
+  group_by(Group, name) %>%
+  summarise(Med = dmode(value),
+            Lo = rethinking::HPDI(value, prob = .95)[1],
+            Up = rethinking::HPDI(value, prob = .95)[2],
+            P = mean(value < 0)) %>%
+  rename(Effect = name) %>%
+  left_join(pred_std_es, c("Group", "Effect")) 
+
+write_csv(pred_rt_es, "Group comparison/posterior/by_group_effectsize_learning_agegroup_v3.csv")
+

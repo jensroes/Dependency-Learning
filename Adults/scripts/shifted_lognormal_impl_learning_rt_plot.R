@@ -146,19 +146,22 @@ pred %>%
   ggplot(aes(x = Block, y = M, 
              color = Dependency, 
              linetype = Dependency, 
+             shape = Dependency,
              ymin = Lower, ymax = Upper,
              group = interaction(Dependency))) +
   theme_minimal() +
   geom_errorbar(width = .0, position = position_dodge(.5)) +
-  geom_point(size = 2, position = position_dodge(.5)) +
+  geom_point(size = 4, position = position_dodge(.5)) +
   geom_line(position = position_dodge(.5)) +
-  ggtitle("Modelled serial reaction time data (adults)") +
+  ggtitle("Modelled serial reaction-time data (adults)") +
   scale_colour_manual(name  = "Dependency:", values =  c("black", "black", "grey50")) +
   scale_linetype_manual(name  = "Dependency:",values = c("solid", "dashed", "dotted")) +
-  theme(legend.justification = "top",
+  scale_shape_manual("Dependency:", values = c(21,23,24)) +
+  theme(legend.justification = "right",
+        legend.position = "bottom",
         legend.key.width = unit(1.25, "cm")) +
   labs(y = bquote(atop("Most probable parameter value "~hat(mu),"with 95% HPDIs (in msecs)"))) +
-  scale_y_continuous(breaks = seq(800, 2100, 100))
+  scale_y_continuous(breaks = seq(700, 2100, 100))
 
-ggsave("plots/adults_modelled_data_shifted_lognormal.png", width = 7, height = 4)
+ggsave("plots/adults_modelled_data_shifted_lognormal.png", width = 8, height = 5)
 

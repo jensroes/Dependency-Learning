@@ -65,7 +65,7 @@ nchains = ncores = 3
 iter = 8000
 
 m <- bf(formula = rt ~ COND + scale(trial_in_block) + 
-          (COND + scale(trial_in_block) |p| subj) + 
+          (dependency * block + scale(trial_in_block) |p| subj) + 
           (1 | stim), 
         ndt ~ 0 + group, sigma ~ 0 + group)
 
@@ -99,7 +99,7 @@ saveRDS(fit,
         file="Group comparison/posterior/group_model.rda",
         compress="xz")
 
-#summary(fit)
+      #summary(fit)
 #plot(fit, pars = "^b_") 
 #pp_check(fit)
 conditional_effects(fit)

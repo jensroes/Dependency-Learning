@@ -151,8 +151,8 @@ papaja::apa_table(summary, align =  "lrrr",
                                       `Two-way interactions`= 5:9,
                                       `Three-way interactions`= 10:11),
                   digits = 0,
-                  font = "footnotesize",
-                  caption = "Age-group comparison for serial reaction-time data. Estimated parameter values (in msecs) for main effects and interactions of Age Group (levels: adults, children), Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent).", 
+                  font = "small",
+                  caption = "Age-group comparison for serial reaction-time data. Estimated parameter values (in msecs) for main effects and interactions of Age Group (levels: adults, children), Dependency (levels: dependency, baseline), Adjacency (levels: adjacent, nonadjacent), and Block (levels: 6, 7).", 
                   note = "$\\hat{\\mu}$ = most probable parameter value; 95\\% HPDI = interval containing 95\\% of the probability mass; $P(\\hat{\\mu}<0)$ = probability of the true parameter value being smaller than 0.") 
 
 ```
